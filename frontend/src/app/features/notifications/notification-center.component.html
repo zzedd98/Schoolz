@@ -1,0 +1,135 @@
+<main class="notification-page">
+  <section class="hero">
+    <div>
+      <span>Centre de notifications</span>
+      <h1>Ce qui compte<br /><em>remonte à la surface.</em></h1>
+      <p>Alertes, rappels et décisions arrivent dans un flux calme, personnel et maîtrisable.</p>
+    </div>
+    @if (data(); as center) {
+      <div class="hero-count">
+        <strong>{{ center.counts.unread }}</strong>
+        <span>à lire</span>
+        <i aria-hidden="true"></i>
+      </div>
+    }
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="message success" role="status">{{ message() }}</p>
+  }
+
+  @if (data(); as center) {
+    <section class="status-river">
+      @for (filter of filters; track filter.value) {
+        <button
+          type="button"
+          [class.active]="status === filter.value"
+          (click)="selectStatus(filter.value)"
+        >
+          <span>{{ filter.label }}</span>
+          <b>
+            @switch (filter.value) {
+              @case ('UNREAD') {
+                {{ center.counts.unread }}
+              }
+              @case ('READ') {
+                {{ center.counts.read }}
+              }
+              @case ('ARCHIVED') {
+                {{ center.counts.archived }}
+              }
+              @default {
+                {{ center.counts.unread + center.counts.read }}
+              }
+            }
+          </b>
+        </button>
+      }
+    </section>
+  }
+
+  <section class="center-layout">
+    <div class="stream">
+      <header>
+        <span>Votre fil personnel</span>
+        <h2>{{ status === 'ARCHIVED' ? 'Archives' : 'À ne pas manquer' }}</h2>
+      </header>
+      @if (loading()) {
+        <div class="loading"><i></i>Synchronisation de vos alertes…</div>
+      } @else if (data(); as center) {
+        @for (item of center.items; track item.id) {
+          <article [class.unread]="item.state === 'UNREAD'" [class.critical]="item.critical">
+            <div class="signal">
+              <i></i><span>{{ item.critical ? '!' : item.state === 'UNREAD' ? 'N' : '✓' }}</span>
+            </div>
+            <div class="copy">
+              <div class="meta">
+                <span>{{
+                  item.critical ? 'Alerte critique' : item.category.replace('_', ' ')
+                }}</span>
+                <time>{{ item.createdAt | date: 'dd MMM · HH:mm' }}</time>
+              </div>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.body }}</p>
+              <div class="actions">
+                <a [routerLink]="item.routePath">Ouvrir le contexte ↗</a>
+                @if (item.state === 'UNREAD') {
+                  <button type="button" [disabled]="busy()" (click)="read(item)">Marquer lu</button>
+                }
+                @if (item.state !== 'ARCHIVED') {
+                  <button type="button" [disabled]="busy()" (click)="archive(item)">
+                    Archiver
+                  </button>
+                }
+              </div>
+            </div>
+          </article>
+        } @empty {
+          <div class="empty">
+            <b>✓</b>
+            <h3>Tout est calme.</h3>
+            <p>Aucune notification dans ce filtre.</p>
+          </div>
+        }
+        <footer class="pagination">
+          <button type="button" [disabled]="center.page === 0" (click)="load(center.page - 1)">
+            ←
+          </button>
+          <span>Page {{ center.page + 1 }}</span>
+          <button type="button" [disabled]="!center.hasNext" (click)="load(center.page + 1)">
+            →
+          </button>
+        </footer>
+      }
+    </div>
+
+    @if (data(); as center) {
+      <aside class="preferences">
+        <span>Canaux personnels</span>
+        <h2>Comment me prévenir ?</h2>
+        <p>Les alertes critiques restent actives si l’école les rend obligatoires.</p>
+        @for (preference of center.preferences; track preference.channel) {
+          <button type="button" [disabled]="busy()" (click)="toggle(preference)">
+            <span class="channel-icon">{{
+              preference.channel === 'PUSH' ? '●' : preference.channel === 'EMAIL' ? '@' : '#'
+            }}</span>
+            <span
+              ><strong>{{ channelName(preference.channel) }}</strong
+              ><small>{{
+                preference.mandatory ? 'Obligatoire pour le bon fonctionnement' : 'Choix personnel'
+              }}</small></span
+            >
+            <i [class.on]="preference.enabled"><b></b></i>
+          </button>
+        }
+        <div class="policy-note">
+          <b>Protection école</b>
+          <p>Un canal obligatoire ne peut pas être coupé par erreur.</p>
+        </div>
+      </aside>
+    }
+  </section>
+</main>

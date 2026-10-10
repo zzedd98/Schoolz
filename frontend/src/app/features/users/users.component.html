@@ -1,0 +1,220 @@
+<main class="users-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ i18n.translate('users.eyebrow') }}</p>
+      <h1>{{ i18n.translate('users.title') }}</h1>
+      <p>{{ i18n.translate('users.subtitle') }}</p>
+    </div>
+    <div class="heading-actions">
+      <button mat-stroked-button type="button" (click)="load()">
+        {{ i18n.translate('users.refresh') }}
+      </button>
+      @if (auth.hasPermission('user.write')) {
+        <button mat-flat-button type="button" (click)="open('user')">
+          + {{ i18n.translate('users.add') }}
+        </button>
+      }
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === 'users'"
+      [attr.aria-selected]="activeTab() === 'users'"
+      (click)="activeTab.set('users')"
+    >
+      {{ i18n.translate('users.tabUsers') }}
+      <span>{{ users().length }}</span>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === 'roles'"
+      [attr.aria-selected]="activeTab() === 'roles'"
+      (click)="activeTab.set('roles')"
+    >
+      {{ i18n.translate('users.tabRoles') }}
+      <span>{{ roles().length }}</span>
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="state-card">{{ i18n.translate('common.loading') }}</div>
+  } @else if (failed() && panel() === null) {
+    <div class="state-card error">{{ i18n.translate('users.loadError') }}</div>
+  } @else if (activeTab() === 'users') {
+    <section class="data-card">
+      <div class="table-header users-grid">
+        <span>{{ i18n.translate('users.name') }}</span>
+        <span>{{ i18n.translate('users.email') }}</span>
+        <span>{{ i18n.translate('users.status') }}</span>
+        <span>{{ i18n.translate('users.roles') }}</span>
+      </div>
+      @for (user of users(); track user.id) {
+        <article class="table-row users-grid">
+          <div class="identity">
+            <span class="user-avatar">{{ initials(user.displayName) }}</span>
+            <strong>{{ user.displayName }}</strong>
+          </div>
+          <span class="email">{{ user.email }}</span>
+          <span class="status" [class]="user.status.toLowerCase()">{{ user.status }}</span>
+          <div class="role-list">
+            @for (role of user.roles; track role) {
+              <span>{{ role.replaceAll('_', ' ') }}</span>
+            }
+          </div>
+        </article>
+      } @empty {
+        <div class="state-card">{{ i18n.translate('users.empty') }}</div>
+      }
+    </section>
+  } @else {
+    <section class="roles-layout">
+      <div class="role-grid">
+        @for (role of roles(); track role.id) {
+          <article class="role-card">
+            <header>
+              <span>{{ role.code.slice(0, 2) }}</span>
+              <small [class.custom]="!role.systemRole">
+                {{ i18n.translate(role.systemRole ? 'roles.system' : 'roles.custom') }}
+              </small>
+            </header>
+            <h2>{{ role.name }}</h2>
+            <code>{{ role.code }}</code>
+            <div class="permission-list">
+              @for (permission of role.permissions.slice(0, 5); track permission) {
+                <span>{{ permission }}</span>
+              }
+              @if (role.permissions.length > 5) {
+                <span>+{{ role.permissions.length - 5 }}</span>
+              }
+            </div>
+          </article>
+        }
+      </div>
+      @if (auth.hasPermission('role.write')) {
+        <button mat-stroked-button type="button" class="new-role" (click)="open('role')">
+          + {{ i18n.translate('roles.createTitle') }}
+        </button>
+      }
+    </section>
+  }
+</main>
+
+@if (panel()) {
+  <button class="panel-scrim" type="button" (click)="close()" aria-label="Fermer"></button>
+  <aside class="editor-panel" aria-modal="true" role="dialog">
+    <header>
+      <div>
+        <p class="eyebrow">{{ i18n.translate('users.eyebrow') }}</p>
+        <h2>
+          {{ i18n.translate(panel() === 'user' ? 'users.createTitle' : 'roles.createTitle') }}
+        </h2>
+      </div>
+      <button type="button" (click)="close()" [attr.aria-label]="i18n.translate('common.close')">
+        ×
+      </button>
+    </header>
+
+    @if (panel() === 'user') {
+      <form [formGroup]="userForm" (ngSubmit)="createUser()">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('users.name') }}</mat-label>
+          <input matInput formControlName="displayName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('users.email') }}</mat-label>
+          <input matInput type="email" formControlName="email" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('users.locale') }}</mat-label>
+          <mat-select formControlName="locale">
+            <mat-option value="fr-MA">Français (Maroc)</mat-option>
+            <mat-option value="ar-MA">العربية (المغرب)</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('users.roleSelection') }}</mat-label>
+          <mat-select formControlName="roleCodes" multiple>
+            @for (role of roles(); track role.id) {
+              <mat-option [value]="role.code">{{ role.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (hasSelectedRole('TEACHER')) {
+          <mat-form-field appearance="outline">
+            <mat-label>{{ i18n.translate('users.teacherProfile') }}</mat-label>
+            <mat-select formControlName="staffProfileId">
+              @for (profile of staffProfiles(); track profile.id) {
+                <mat-option [value]="profile.id">
+                  {{ profile.displayName }}
+                  @if (profile.reference) {
+                    · {{ profile.reference }}
+                  }
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        @if (hasSelectedRole('STUDENT')) {
+          <mat-form-field appearance="outline">
+            <mat-label>{{ i18n.translate('users.studentProfile') }}</mat-label>
+            <mat-select formControlName="studentId">
+              @for (profile of studentProfiles(); track profile.id) {
+                <mat-option [value]="profile.id">{{ profile.displayName }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        @if (success()) {
+          <p class="success-message">{{ success() }}</p>
+        }
+        @if (activationLink()) {
+          <div class="verification-token">
+            <span>{{ i18n.translate('users.activationLink') }}</span>
+            <code>{{ activationLink() }}</code>
+            <button mat-stroked-button type="button" (click)="copyActivationLink()">
+              {{ i18n.translate('users.copyActivationLink') }}
+            </button>
+          </div>
+        }
+        @if (failed()) {
+          <p class="error-message">{{ i18n.translate('users.createError') }}</p>
+        }
+        <button mat-flat-button type="submit" [disabled]="saving()">
+          {{ i18n.translate('users.create') }}
+        </button>
+      </form>
+    } @else {
+      <form [formGroup]="roleForm" (ngSubmit)="createRole()">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('roles.code') }}</mat-label>
+          <input matInput formControlName="code" placeholder="CUSTOM_ROLE" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('roles.name') }}</mat-label>
+          <input matInput formControlName="name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('roles.permissions') }}</mat-label>
+          <mat-select formControlName="permissions" multiple>
+            @for (permission of permissions(); track permission) {
+              <mat-option [value]="permission">{{ permission }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (success()) {
+          <p class="success-message">{{ success() }}</p>
+        }
+        @if (failed()) {
+          <p class="error-message">{{ i18n.translate('users.createError') }}</p>
+        }
+        <button mat-flat-button type="submit" [disabled]="saving()">
+          {{ i18n.translate('roles.create') }}
+        </button>
+      </form>
+    }
+  </aside>
+}

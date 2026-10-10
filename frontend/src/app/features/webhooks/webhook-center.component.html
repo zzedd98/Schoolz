@@ -1,0 +1,228 @@
+<main class="webhook-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span>Webhooks sortants</span>
+      <h1>Chaque événement<br /><em>arrive avec une preuve.</em></h1>
+      <p>
+        Abonnez vos systèmes aux événements SchoolZ. Signature HMAC, idempotence, reprises et dead
+        letters restent visibles de bout en bout.
+      </p>
+      <div class="hero-actions">
+        <button type="button" (click)="openCreator()">+ Nouvel abonnement</button>
+        <button class="secondary" type="button" [disabled]="busy()" (click)="publishDemo()">
+          Émettre un événement test
+        </button>
+      </div>
+    </div>
+    <div class="pulse" aria-hidden="true"><i></i><b></b><span>HMAC</span></div>
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="message success" role="status">{{ success() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="loading"><span></span>Lecture de la file de livraison…</div>
+  } @else if (data(); as dashboard) {
+    <section class="metrics" aria-label="Indicateurs webhooks">
+      <div>
+        <strong>{{ dashboard.statistics.activeCount }}</strong
+        ><span>abonnements actifs</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.deliveredCount }}</strong
+        ><span>livraisons réussies</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.retryCount }}</strong
+        ><span>reprises planifiées</span>
+      </div>
+      <div class="danger">
+        <strong>{{ dashboard.statistics.deadLetterCount }}</strong
+        ><span>dead letters ouvertes</span>
+      </div>
+    </section>
+
+    <section class="event-river">
+      <header>
+        <span>Catalogue v1</span>
+        <h2>Six événements métier stables</h2>
+      </header>
+      <div>
+        @for (eventType of dashboard.eventTypes; track eventType) {
+          <code>{{ eventType }}</code>
+        }
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="subscriptions">
+        <header class="section-head">
+          <div>
+            <span>Destinations</span>
+            <h2>Qui écoute quoi ?</h2>
+          </div>
+          <button type="button" [disabled]="busy()" (click)="processDue()">
+            Traiter la file due
+          </button>
+        </header>
+        @for (subscription of dashboard.subscriptions; track subscription.id; let index = $index) {
+          <article [class.inactive]="!subscription.active">
+            <div class="number">{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</div>
+            <div class="subscription-copy">
+              <div class="eyebrow">
+                <span [class.active]="subscription.active">{{
+                  subscription.active ? 'Active' : 'Révoquée'
+                }}</span>
+                <code>{{ subscription.secretPrefix }}••••</code>
+              </div>
+              <h3>{{ subscription.name }}</h3>
+              <p>{{ subscription.endpointUrl }}</p>
+              <small
+                >{{ subscription.maxAttempts }} essais · timeout
+                {{ subscription.timeoutSeconds }} s</small
+              >
+            </div>
+            <div class="event-cloud">
+              @for (eventType of subscription.eventTypes; track eventType) {
+                <span>{{ eventType }}</span>
+              }
+            </div>
+            @if (subscription.active) {
+              <div class="row-action">
+                <input
+                  type="text"
+                  [ngModel]="reason(subscription.id)"
+                  (ngModelChange)="setReason(subscription.id, $event)"
+                  placeholder="Motif de désactivation"
+                  [attr.aria-label]="'Motif de désactivation pour ' + subscription.name"
+                />
+                <button type="button" [disabled]="busy()" (click)="revoke(subscription)">
+                  Désactiver
+                </button>
+              </div>
+            }
+          </article>
+        }
+      </div>
+
+      <aside class="dead-stream">
+        <span>Dead letter</span>
+        <h2>Rien ne disparaît en silence.</h2>
+        @for (letter of dashboard.deadLetters; track letter.id) {
+          <article [class.resolved]="letter.resolvedAt">
+            <i>!</i>
+            <div>
+              <strong>{{ letter.eventType }}</strong>
+              <small
+                >{{ letter.subscriptionName }} · {{ letter.failedAt | date: 'dd/MM HH:mm' }}</small
+              >
+              <p>{{ letter.reason }}</p>
+            </div>
+          </article>
+        } @empty {
+          <p>Aucune dead letter ouverte.</p>
+        }
+      </aside>
+    </section>
+
+    <section class="delivery-flow">
+      <header class="section-head">
+        <div>
+          <span>Journal append-only</span>
+          <h2>Dernières livraisons</h2>
+        </div>
+      </header>
+      <div class="flow-head">
+        <span>Événement</span><span>Destination</span><span>Essais</span><span>Résultat</span
+        ><span>Action</span>
+      </div>
+      @for (delivery of dashboard.deliveries; track delivery.id) {
+        <article>
+          <div>
+            <code>{{ delivery.eventType }}</code
+            ><small>{{ delivery.idempotencyKey }}</small>
+          </div>
+          <div>
+            <strong>{{ delivery.subscriptionName }}</strong
+            ><small>{{ delivery.updatedAt | date: 'dd/MM HH:mm' }}</small>
+          </div>
+          <strong>{{ delivery.attemptCount }}</strong>
+          <span class="status" [class]="delivery.status.toLowerCase()"
+            >{{ statusName(delivery.status) }}
+            <small>
+              @if (delivery.lastHttpStatus) {
+                HTTP {{ delivery.lastHttpStatus }}
+              }
+            </small></span
+          >
+          @if (delivery.status === 'DEAD_LETTER' || delivery.status === 'RETRY_SCHEDULED') {
+            <div class="retry-action">
+              <input
+                type="text"
+                [ngModel]="reason(delivery.id)"
+                (ngModelChange)="setReason(delivery.id, $event)"
+                placeholder="Motif de reprise"
+                [attr.aria-label]="'Motif de reprise pour ' + delivery.eventType"
+              />
+              <button type="button" [disabled]="busy()" (click)="retry(delivery)">Rejouer</button>
+            </div>
+          } @else {
+            <small>Aucune action</small>
+          }
+        </article>
+      }
+    </section>
+  }
+</main>
+
+@if (drawerOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)"></button>
+  <aside class="drawer" aria-label="Nouvel abonnement webhook">
+    <button class="close" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)">
+      ×
+    </button>
+    <span>Destination signée</span>
+    <h2>Brancher un récepteur.</h2>
+    <p>Le secret n’est révélé qu’une fois puis reste chiffré côté serveur.</p>
+    @if (revealedSecret()) {
+      <div class="secret-once">
+        <strong>Copiez ce secret maintenant</strong><code>{{ revealedSecret() }}</code>
+        <p>Utilisez-le pour vérifier l’en-tête <code>X-SchoolZ-Signature</code>.</p>
+      </div>
+    } @else {
+      <label
+        ><span>Nom *</span><input [(ngModel)]="form.name" placeholder="Ex. SIS partenaire"
+      /></label>
+      <label><span>URL HTTPS *</span><input [(ngModel)]="form.endpointUrl" /></label>
+      <fieldset>
+        <legend>Événements *</legend>
+        @for (eventType of data()?.eventTypes ?? []; track eventType) {
+          <label [class.checked]="hasEvent(eventType)"
+            ><input
+              type="checkbox"
+              [checked]="hasEvent(eventType)"
+              (change)="toggleEvent(eventType, $any($event.target).checked)"
+            />{{ eventType }}</label
+          >
+        }
+      </fieldset>
+      <div class="two">
+        <label
+          ><span>Tentatives</span
+          ><input type="number" min="1" max="10" [(ngModel)]="form.maxAttempts"
+        /></label>
+        <label
+          ><span>Timeout (s)</span
+          ><input type="number" min="1" max="30" [(ngModel)]="form.timeoutSeconds"
+        /></label>
+      </div>
+      <button class="create" type="button" [disabled]="busy()" (click)="create()">
+        {{ busy() ? 'Création…' : 'Créer et révéler le secret' }}
+      </button>
+    }
+  </aside>
+}

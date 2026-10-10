@@ -1,0 +1,580 @@
+<main class="payroll-page">
+  @if (loading() && !dashboard()) {
+    <div class="page-state">Préparation du cockpit de paie…</div>
+  } @else if (failed() || !dashboard()) {
+    <div class="page-state error">L’espace Paie ne peut pas être chargé.</div>
+  } @else {
+    @let data = dashboard()!;
+    @let run = selectedRun();
+
+    <header class="payroll-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Moteur configurable</p>
+        <h1>La paie, <i>sans boîte noire.</i></h1>
+        <p>
+          Chaque composant, règle et ajustement reste visible, sourcé et traçable avant de figer les
+          bulletins.
+        </p>
+      </div>
+      <div class="hero-ledger" aria-hidden="true">
+        <span class="ledger-ring ring-one"></span>
+        <span class="ledger-ring ring-two"></span>
+        <div>
+          <small>Net du run</small>
+          <strong>{{
+            run?.totalNet ?? 0 | currency: run?.currency ?? 'MAD' : 'symbol' : '1.2-2'
+          }}</strong>
+          <em>{{ run?.employeeCount ?? 0 }} bulletin(s)</em>
+        </div>
+      </div>
+      <div class="hero-metrics">
+        <div>
+          <span>Brut</span><strong>{{ run?.totalGross ?? 0 | number: '1.2-2' }}</strong>
+        </div>
+        <div>
+          <span>Retenues</span><strong>{{ run?.totalDeductions ?? 0 | number: '1.2-2' }}</strong>
+        </div>
+        <div>
+          <span>Composants</span><strong>{{ data.components.length }}</strong>
+        </div>
+      </div>
+    </header>
+
+    <aside class="compliance-ribbon">
+      <span aria-hidden="true">!</span>
+      <div>
+        <strong>Cadre de conformité explicite</strong>
+        <p>{{ data.complianceNotice }}</p>
+      </div>
+    </aside>
+
+    <nav class="payroll-navigation" aria-label="Rubriques Paie">
+      <button
+        type="button"
+        [class.active]="activeView() === 'cycle'"
+        (click)="activeView.set('cycle')"
+      >
+        <span>01</span> Cycle de paie
+      </button>
+      <button
+        type="button"
+        [class.active]="activeView() === 'payslips'"
+        (click)="activeView.set('payslips')"
+      >
+        <span>02</span> Bulletins <b>{{ payslips().length }}</b>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeView() === 'rules'"
+        (click)="activeView.set('rules')"
+      >
+        <span>03</span> Règles & profils
+      </button>
+      <button
+        type="button"
+        [class.active]="activeView() === 'adjustments'"
+        (click)="activeView.set('adjustments')"
+      >
+        <span>04</span> Ajustements
+      </button>
+    </nav>
+
+    @switch (activeView()) {
+      @case ('cycle') {
+        <section class="cycle-space">
+          <header class="section-heading">
+            <div>
+              <p class="eyebrow">Du brouillon à l’export</p>
+              <h2>Un cycle contrôlé, étape par étape.</h2>
+            </div>
+            @if (auth.hasPermission('payroll.configure')) {
+              <button type="button" class="primary-action" (click)="drawer.set('period')">
+                + Nouvelle période
+              </button>
+            }
+          </header>
+
+          <div class="process-river" aria-label="Étapes du cycle de paie">
+            <div><span>01</span><strong>Configurer</strong><small>profils & règles</small></div>
+            <i>→</i>
+            <div><span>02</span><strong>Calculer</strong><small>résultat reproductible</small></div>
+            <i>→</i>
+            <div><span>03</span><strong>Contrôler</strong><small>bulletin par bulletin</small></div>
+            <i>→</i>
+            <div><span>04</span><strong>Finaliser</strong><small>figer les montants</small></div>
+            <i>→</i>
+            <div><span>05</span><strong>Exporter</strong><small>CSV / JSON signé</small></div>
+          </div>
+
+          <div class="cycle-layout">
+            <aside class="period-stream">
+              <p class="eyebrow">Périodes</p>
+              @for (period of data.periods; track period.id; let index = $index) {
+                <article>
+                  <span>0{{ index + 1 }}</span>
+                  <div>
+                    <h3>{{ period.label }}</h3>
+                    <p>
+                      {{ period.startsOn | date: 'dd/MM' }} —
+                      {{ period.endsOn | date: 'dd/MM/yyyy' }}
+                    </p>
+                  </div>
+                  <b [class]="'status-' + period.status.toLowerCase()">{{
+                    statusLabel(period.status)
+                  }}</b>
+                  @if (!runForPeriod(period.id) && auth.hasPermission('payroll.run')) {
+                    <button type="button" (click)="createRun(period.id)">Préparer le run</button>
+                  }
+                </article>
+              }
+            </aside>
+
+            <div class="run-stage">
+              @if (run) {
+                <header class="run-title">
+                  <div>
+                    <p class="eyebrow">{{ run.runNumber }}</p>
+                    <h2>{{ run.periodLabel }}</h2>
+                    <p>Paiement prévu le {{ run.paymentDate | date: 'dd/MM/yyyy' }}</p>
+                  </div>
+                  <span [class]="'run-status status-' + run.status.toLowerCase()">{{
+                    statusLabel(run.status)
+                  }}</span>
+                </header>
+
+                <div class="money-balance">
+                  <div class="balance-gross">
+                    <span>Brut cumulé</span>
+                    <strong>{{
+                      run.totalGross | currency: run.currency : 'symbol' : '1.2-2'
+                    }}</strong>
+                  </div>
+                  <span class="balance-minus">−</span>
+                  <div class="balance-deduction">
+                    <span>Retenues</span>
+                    <strong>{{
+                      run.totalDeductions | currency: run.currency : 'symbol' : '1.2-2'
+                    }}</strong>
+                  </div>
+                  <span class="balance-equal">=</span>
+                  <div class="balance-net">
+                    <span>Net à payer</span>
+                    <strong>{{
+                      run.totalNet | currency: run.currency : 'symbol' : '1.2-2'
+                    }}</strong>
+                  </div>
+                </div>
+
+                <div class="run-actions">
+                  @if (
+                    auth.hasPermission('payroll.run') &&
+                    (run.status === 'DRAFT' || run.status === 'CALCULATED')
+                  ) {
+                    <button type="button" (click)="calculate(run)" [disabled]="saving()">
+                      ↻ {{ run.status === 'DRAFT' ? 'Calculer les bulletins' : 'Recalculer' }}
+                    </button>
+                  }
+                  <button type="button" (click)="activeView.set('payslips')">
+                    Contrôler les {{ run.employeeCount }} bulletins
+                  </button>
+                  @if (auth.hasPermission('payroll.finalize') && run.status === 'CALCULATED') {
+                    <button
+                      type="button"
+                      class="finalize"
+                      (click)="finalize(run)"
+                      [disabled]="saving()"
+                    >
+                      Finaliser et figer
+                    </button>
+                  }
+                  @if (
+                    auth.hasPermission('payroll.export') &&
+                    (run.status === 'FINALIZED' || run.status === 'EXPORTED')
+                  ) {
+                    <button
+                      type="button"
+                      class="export"
+                      (click)="export(run)"
+                      [disabled]="saving()"
+                    >
+                      Export comptable CSV
+                    </button>
+                  }
+                </div>
+
+                @if (lastExport()) {
+                  <div class="export-proof">
+                    <span>Export vérifié</span>
+                    <strong>{{ lastExport()!.exportReference }}</strong>
+                    <code>{{ lastExport()!.sha256 }}</code>
+                  </div>
+                }
+              } @else {
+                <div class="empty-stage">Ouvrez une période puis préparez son premier run.</div>
+              }
+            </div>
+          </div>
+        </section>
+      }
+
+      @case ('payslips') {
+        <section class="payslip-space">
+          <header class="section-heading">
+            <div>
+              <p class="eyebrow">Contrôle individuel</p>
+              <h2>{{ run?.periodLabel ?? 'Bulletins' }}</h2>
+            </div>
+            <p>Chaque ligne garde son composant, sa règle et son origine.</p>
+          </header>
+          <div class="payslip-layout">
+            <aside class="payslip-index">
+              @for (slip of payslips(); track slip.id; let index = $index) {
+                <button
+                  type="button"
+                  [class.active]="selectedPayslip()?.payslip?.id === slip.id"
+                  (click)="openPayslip(slip.id)"
+                >
+                  <span>0{{ index + 1 }}</span>
+                  <div>
+                    <strong>{{ slip.employeeName }}</strong
+                    ><small>{{ slip.payslipNumber }}</small>
+                  </div>
+                  <b>{{ slip.netAmount | number: '1.2-2' }}</b>
+                </button>
+              } @empty {
+                <p>Aucun bulletin. Calculez d’abord le run.</p>
+              }
+            </aside>
+
+            @if (selectedPayslip()) {
+              @let record = selectedPayslip()!;
+              <article class="payslip-sheet">
+                <header>
+                  <div>
+                    <p class="eyebrow">{{ record.payslip.payslipNumber }}</p>
+                    <h2>{{ record.payslip.employeeName }}</h2>
+                    <span>{{ record.payslip.employeeNumber }}</span>
+                  </div>
+                  <div class="net-stamp">
+                    <small>Net</small>
+                    <strong>{{
+                      record.payslip.netAmount
+                        | currency: record.payslip.currency : 'symbol' : '1.2-2'
+                    }}</strong>
+                  </div>
+                </header>
+                <div class="payslip-lines">
+                  @for (line of record.lines; track line.id) {
+                    <div [class]="'line-type-' + line.componentType.toLowerCase()">
+                      <span>{{ typeLabel(line.componentType) }}</span>
+                      <div>
+                        <strong>{{ line.componentName }}</strong
+                        ><small>{{ line.description ?? line.source }}</small>
+                      </div>
+                      @if (line.quantity) {
+                        <em>{{ line.quantity }} × {{ line.rate | number: '1.2-2' }}</em>
+                      }
+                      <b>{{
+                        line.amount | currency: record.payslip.currency : 'symbol' : '1.2-2'
+                      }}</b>
+                    </div>
+                  }
+                </div>
+                <footer>
+                  <div>
+                    <span>Brut</span
+                    ><strong>{{ record.payslip.grossAmount | number: '1.2-2' }}</strong>
+                  </div>
+                  <div>
+                    <span>Retenues</span
+                    ><strong>{{ record.payslip.deductionAmount | number: '1.2-2' }}</strong>
+                  </div>
+                  <div>
+                    <span>Net à payer</span
+                    ><strong>{{ record.payslip.netAmount | number: '1.2-2' }}</strong>
+                  </div>
+                </footer>
+              </article>
+            }
+          </div>
+        </section>
+      }
+
+      @case ('rules') {
+        <section class="rules-space">
+          <header class="section-heading">
+            <div>
+              <p class="eyebrow">Paramétrage transparent</p>
+              <h2>Composants, règles & profils</h2>
+            </div>
+            <div class="heading-actions">
+              @if (auth.hasPermission('payroll.configure')) {
+                <button type="button" (click)="drawer.set('component')">+ Composant</button>
+                <button type="button" class="primary-action" (click)="drawer.set('rule')">
+                  + Règle
+                </button>
+              }
+            </div>
+          </header>
+          <div class="rule-landscape">
+            <div class="component-constellation">
+              @for (component of data.components; track component.id; let index = $index) {
+                <article [class]="'component-' + component.componentType.toLowerCase()">
+                  <span>0{{ index + 1 }}</span>
+                  <div>
+                    <small>{{ typeLabel(component.componentType) }}</small>
+                    <h3>{{ component.name }}</h3>
+                    <p>{{ basisLabel(component.calculationBasis) }}</p>
+                  </div>
+                  <code>{{ component.code }}</code>
+                </article>
+              }
+            </div>
+            <aside class="rule-register">
+              <div>
+                <p class="eyebrow">Registre des règles</p>
+                <strong>{{ data.rules.length }}</strong>
+              </div>
+              @for (rule of data.rules; track rule.id) {
+                <article>
+                  <div>
+                    <small>{{ rule.componentName }}</small>
+                    <h3>{{ rule.name }}</h3>
+                  </div>
+                  <span [class.validated]="rule.legallyValidated">{{
+                    rule.legallyValidated ? 'Validée & sourcée' : 'À valider'
+                  }}</span>
+                  <p>{{ rule.sourceReference ?? 'Source non renseignée' }}</p>
+                </article>
+              }
+            </aside>
+          </div>
+          <div class="profile-river">
+            <header>
+              <p class="eyebrow">Profils salariaux actifs</p>
+              <h2>Liés aux employés RH, jamais dupliqués.</h2>
+            </header>
+            @for (profile of data.profiles; track profile.id) {
+              <article>
+                <span
+                  >{{ profile.employeeName.split(' ')[0][0]
+                  }}{{ profile.employeeName.split(' ')[1]?.[0] }}</span
+                >
+                <div>
+                  <h3>{{ profile.employeeName }}</h3>
+                  <p>
+                    {{ profile.employeeNumber }} · depuis
+                    {{ profile.effectiveFrom | date: 'MMM yyyy' }}
+                  </p>
+                </div>
+                <ul>
+                  @for (component of profile.components; track component.id) {
+                    <li>
+                      {{ component.componentName }}
+                      <strong>{{
+                        component.configuredAmount ?? component.ruleName ?? 'Configuré'
+                      }}</strong>
+                    </li>
+                  }
+                </ul>
+              </article>
+            }
+          </div>
+        </section>
+      }
+
+      @case ('adjustments') {
+        <section class="adjustment-space">
+          <header class="section-heading">
+            <div>
+              <p class="eyebrow">Variables du mois</p>
+              <h2>Bonus, heures, absences et retenues.</h2>
+            </div>
+            @if (auth.hasPermission('payroll.run')) {
+              <button type="button" class="primary-action" (click)="drawer.set('adjustment')">
+                + Ajustement
+              </button>
+            }
+          </header>
+          <div class="adjustment-timeline">
+            @for (adjustment of data.adjustments; track adjustment.id; let index = $index) {
+              <article [class]="'adjustment-' + adjustment.componentType.toLowerCase()">
+                <span>0{{ index + 1 }}</span>
+                <div class="adjustment-person">
+                  <small>{{ adjustment.periodCode }}</small>
+                  <h3>{{ adjustment.employeeName }}</h3>
+                  <p>{{ adjustment.reason }}</p>
+                </div>
+                <div class="adjustment-kind">
+                  <small>{{ typeLabel(adjustment.componentType) }}</small
+                  ><strong>{{ adjustment.componentName }}</strong>
+                </div>
+                <b>{{ adjustmentValue(adjustment) | currency: 'MAD' : 'symbol' : '1.2-2' }}</b>
+                <em [class]="'status-' + adjustment.status.toLowerCase()">{{
+                  statusLabel(adjustment.status)
+                }}</em>
+              </article>
+            }
+          </div>
+        </section>
+      }
+    }
+
+    @if (drawer()) {
+      <button
+        type="button"
+        class="drawer-backdrop"
+        (click)="drawer.set(null)"
+        aria-label="Fermer le panneau de configuration"
+      ></button>
+      <aside
+        class="payroll-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Configuration de paie"
+      >
+        <button type="button" class="drawer-close" (click)="drawer.set(null)" aria-label="Fermer">
+          ×
+        </button>
+
+        @if (drawer() === 'period') {
+          <p class="eyebrow">Calendrier de paie</p>
+          <h2>Ouvrir une période</h2>
+          <label>Code<input [(ngModel)]="periodDraft.code" /></label>
+          <label>Libellé<input [(ngModel)]="periodDraft.label" /></label>
+          <div class="form-pair">
+            <label>Du<input type="date" [(ngModel)]="periodDraft.startsOn" /></label
+            ><label>Au<input type="date" [(ngModel)]="periodDraft.endsOn" /></label>
+          </div>
+          <label>Date de paiement<input type="date" [(ngModel)]="periodDraft.paymentDate" /></label>
+          <button
+            type="button"
+            class="submit-action"
+            (click)="createPeriod()"
+            [disabled]="saving()"
+          >
+            Créer la période
+          </button>
+        }
+
+        @if (drawer() === 'component') {
+          <p class="eyebrow">Brique de calcul</p>
+          <h2>Nouveau composant</h2>
+          <label>Code<input [(ngModel)]="componentDraft.code" /></label>
+          <label>Nom<input [(ngModel)]="componentDraft.name" /></label>
+          <div class="form-pair">
+            <label
+              >Nature<select [(ngModel)]="componentDraft.componentType">
+                <option value="BASE">Base</option>
+                <option value="BONUS">Prime</option>
+                <option value="ALLOWANCE">Indemnité</option>
+                <option value="OVERTIME">Heures sup.</option>
+                <option value="ABSENCE">Absence</option>
+                <option value="DEDUCTION">Retenue</option>
+              </select></label
+            ><label
+              >Calcul<select [(ngModel)]="componentDraft.calculationBasis">
+                <option value="PROFILE_AMOUNT">Montant profil</option>
+                <option value="FIXED">Fixe</option>
+                <option value="PERCENT_OF_BASE">% de la base</option>
+                <option value="PER_UNIT">Par unité</option>
+              </select></label
+            >
+          </div>
+          <label
+            >Description<textarea rows="3" [(ngModel)]="componentDraft.description"></textarea>
+          </label>
+          <button
+            type="button"
+            class="submit-action"
+            (click)="createComponent()"
+            [disabled]="saving()"
+          >
+            Créer le composant
+          </button>
+        }
+
+        @if (drawer() === 'rule') {
+          <p class="eyebrow">Règle configurable</p>
+          <h2>Nouvelle règle</h2>
+          <label
+            >Composant<select [(ngModel)]="ruleDraft.componentId">
+              @for (component of data.components; track component.id) {
+                <option [value]="component.id">{{ component.name }}</option>
+              }
+            </select></label
+          >
+          <label>Code<input [(ngModel)]="ruleDraft.code" /></label>
+          <label>Nom<input [(ngModel)]="ruleDraft.name" /></label>
+          @if (componentById(ruleDraft.componentId)?.calculationBasis === 'FIXED') {
+            <label>Montant fixe<input type="number" [(ngModel)]="ruleDraft.fixedAmount" /></label>
+          }
+          @if (componentById(ruleDraft.componentId)?.calculationBasis === 'PERCENT_OF_BASE') {
+            <label>Taux (%)<input type="number" [(ngModel)]="ruleDraft.ratePercent" /></label>
+          }
+          @if (componentById(ruleDraft.componentId)?.calculationBasis === 'PER_UNIT') {
+            <label>Tarif unitaire<input type="number" [(ngModel)]="ruleDraft.unitRate" /></label>
+          }
+          <label
+            >Référence de la source<input
+              [(ngModel)]="ruleDraft.sourceReference"
+              placeholder="Référence interne ou source officielle vérifiée"
+          /></label>
+          <p class="drawer-note">
+            La règle sera créée « à valider ». SchoolZ ne la déclarera conforme qu’après revue de sa
+            source.
+          </p>
+          <button type="button" class="submit-action" (click)="createRule()" [disabled]="saving()">
+            Créer à valider
+          </button>
+        }
+
+        @if (drawer() === 'adjustment') {
+          <p class="eyebrow">Variable du mois</p>
+          <h2>Ajouter un ajustement</h2>
+          <label
+            >Employé<select [(ngModel)]="adjustmentDraft.employeeId">
+              @for (profile of data.profiles; track profile.id) {
+                <option [value]="profile.employeeId">{{ profile.employeeName }}</option>
+              }
+            </select></label
+          >
+          <label
+            >Période<select [(ngModel)]="adjustmentDraft.periodId">
+              @for (period of data.periods; track period.id) {
+                <option [value]="period.id">{{ period.label }}</option>
+              }
+            </select></label
+          >
+          <label
+            >Composant<select [(ngModel)]="adjustmentDraft.componentId">
+              @for (component of data.components; track component.id) {
+                <option [value]="component.id">{{ component.name }}</option>
+              }
+            </select></label
+          >
+          <div class="form-pair">
+            <label>Montant<input type="number" [(ngModel)]="adjustmentDraft.amount" /></label
+            ><label>Quantité<input type="number" [(ngModel)]="adjustmentDraft.quantity" /></label>
+          </div>
+          <label
+            >Tarif unitaire<input type="number" [(ngModel)]="adjustmentDraft.unitRate"
+          /></label>
+          <label>Motif<textarea rows="3" [(ngModel)]="adjustmentDraft.reason"></textarea></label>
+          <button
+            type="button"
+            class="submit-action"
+            (click)="createAdjustment()"
+            [disabled]="saving()"
+          >
+            Ajouter au calcul
+          </button>
+        }
+      </aside>
+    }
+
+    @if (feedback()) {
+      <div class="feedback" role="status">{{ feedback() }}</div>
+    }
+  }
+</main>

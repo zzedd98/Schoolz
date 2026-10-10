@@ -1,0 +1,207 @@
+<main class="student-space">
+  <header class="student-topbar">
+    <a class="brand" routerLink="/student" aria-label="Accueil SchoolZ élève">
+      <span class="brand-mark" aria-hidden="true"><b>S</b><b>Z</b></span>
+      <span>SchoolZ</span>
+      <small>Espace élève</small>
+    </a>
+
+    <nav aria-label="Navigation élève">
+      <a routerLink="/student/day">Ma journée</a>
+      <a routerLink="/student/grades">Dernières notes</a>
+      <a routerLink="/student/homework">Travail à faire</a>
+      <a routerLink="/student/courses">Mes cours</a>
+      <a routerLink="/student/assessments">Prochains DS</a>
+      <a routerLink="/student/library">Bibliothèque</a>
+    </nav>
+
+    <div class="top-actions">
+      <label>
+        <span>Journée</span>
+        <input type="date" [(ngModel)]="selectedDate" (change)="selectDate()" />
+      </label>
+      <button class="profile-button" type="button" (click)="logout()" title="Se déconnecter">
+        <span>{{ initials() }}</span>
+        <b>{{ dashboard()?.student?.firstName ?? 'Élève' }}</b>
+        <i aria-hidden="true">↗</i>
+      </button>
+    </div>
+  </header>
+
+  @if (loading() && !dashboard()) {
+    <section class="loading-state" aria-live="polite">
+      <span></span>
+      <strong>Ton espace se prépare…</strong>
+    </section>
+  } @else if (error() && !dashboard()) {
+    <section class="error-state" role="alert">
+      <b>!</b>
+      <h1>Nous n’avons pas pu ouvrir ton espace</h1>
+      <p>{{ error() }}</p>
+      <button type="button" (click)="load()">Réessayer</button>
+    </section>
+  } @else if (dashboard(); as data) {
+    @if (loading()) {
+      <div class="busy-line" aria-hidden="true"></div>
+    }
+
+    <section class="page-intro">
+      <div>
+        <span>Bonjour {{ data.student.preferredName || data.student.firstName }} 👋</span>
+        <h1>Ton espace personnel</h1>
+      </div>
+      <p>
+        {{ data.student.classroomName || 'Classe à confirmer' }} ·
+        {{ data.student.campusName || 'Votre établissement' }}
+      </p>
+    </section>
+
+    @if (error()) {
+      <p class="inline-error" role="alert">{{ error() }}</p>
+    }
+
+    <section class="student-sections" aria-label="Données scolaires de l’élève">
+      <article class="student-panel day-panel">
+        <header>
+          <div>
+            <span>Aujourd’hui & après</span>
+            <h2>Ma journée</h2>
+          </div>
+          <a routerLink="/student/day" [queryParams]="{ date: data.scheduleDate }"
+            >Voir tout <b>→</b></a
+          >
+        </header>
+        <p class="panel-context">
+          @if (data.showingNextSchoolDay) {
+            Prochaine journée · {{ longDate(data.scheduleDate) }}
+          } @else {
+            {{ longDate(data.scheduleDate) }}
+          }
+        </p>
+        <div class="day-preview">
+          @for (lesson of data.lessons.slice(0, 3); track lesson.id) {
+            <div [style.--subject]="lesson.color">
+              <time>{{ time(lesson.startsAt) }}</time>
+              <span
+                ><b>{{ lesson.subjectNameFr }}</b
+                ><small>{{ lesson.roomName }}</small></span
+              >
+            </div>
+          } @empty {
+            <p class="empty-preview">Aucun cours prévu ce jour-là.</p>
+          }
+        </div>
+      </article>
+
+      <article class="student-panel grades-panel">
+        <header>
+          <div>
+            <span>Tes progrès</span>
+            <h2>Dernières notes</h2>
+          </div>
+          <a routerLink="/student/grades">Voir tout <b>→</b></a>
+        </header>
+        <div class="grade-preview">
+          @for (grade of data.grades.slice(0, 3); track grade.id) {
+            <div [style.--subject]="grade.color">
+              <span
+                ><small>{{ grade.subjectNameFr }}</small
+                ><b>{{ grade.title }}</b></span
+              >
+              <strong>{{ gradeOn20(grade) }}<small>/20</small></strong>
+            </div>
+          } @empty {
+            <p class="empty-preview">Tes premières notes apparaîtront ici.</p>
+          }
+        </div>
+      </article>
+
+      <article class="student-panel homework-panel">
+        <header>
+          <div>
+            <span>À ton rythme</span>
+            <h2>Travail à faire</h2>
+          </div>
+          <a routerLink="/student/homework">Voir tout <b>→</b></a>
+        </header>
+        <div class="homework-preview">
+          @for (homework of data.homework.slice(0, 3); track homework.id) {
+            <div [class.done]="homework.status === 'DONE'" [style.--subject]="homework.color">
+              <span
+                ><small>{{ homework.subjectNameFr }}</small
+                ><b>{{ homework.title }}</b></span
+              >
+              <button
+                type="button"
+                (click)="toggleHomework(homework)"
+                [attr.aria-label]="'Modifier le statut de ' + homework.title"
+              >
+                {{ homework.status === 'DONE' ? '✓' : '○' }}
+              </button>
+            </div>
+          } @empty {
+            <p class="empty-preview">Tout est à jour.</p>
+          }
+        </div>
+      </article>
+
+      <article class="student-panel courses-panel">
+        <header>
+          <div>
+            <span>Bibliothèque</span>
+            <h2>Mes derniers cours</h2>
+          </div>
+          <a routerLink="/student/courses">Voir tout <b>→</b></a>
+        </header>
+        <div class="course-preview">
+          @for (course of data.courses.slice(0, 3); track course.id) {
+            <div [style.--subject]="course.color">
+              <time>{{ shortDate(course.lessonDate) }}</time>
+              <span
+                ><small>{{ course.subjectNameFr }}</small
+                ><b>{{ course.title }}</b></span
+              >
+            </div>
+          } @empty {
+            <p class="empty-preview">Les cours publiés apparaîtront ici.</p>
+          }
+        </div>
+      </article>
+
+      <article class="student-panel assessments-panel">
+        <header>
+          <div>
+            <span>À préparer</span>
+            <h2>Prochains DS</h2>
+          </div>
+          <a routerLink="/student/assessments">Voir tout <b>→</b></a>
+        </header>
+        <div class="assessment-preview">
+          @for (assessment of data.assessments.slice(0, 3); track assessment.id) {
+            <div [style.--subject]="assessment.color">
+              <time
+                ><b>{{ shortDate(assessment.assessmentDate).split(' ')[0] }}</b
+                ><small>{{ shortDate(assessment.assessmentDate).split(' ')[1] }}</small></time
+              >
+              <span
+                ><small>{{ assessment.subjectNameFr }}</small
+                ><b>{{ assessment.title }}</b></span
+              >
+            </div>
+          } @empty {
+            <p class="empty-preview">Aucune évaluation annoncée.</p>
+          }
+        </div>
+      </article>
+    </section>
+
+    <footer class="student-footer">
+      <div>
+        <span class="brand-mark" aria-hidden="true"><b>S</b><b>Z</b></span
+        ><strong>SchoolZ</strong>
+      </div>
+      <p>Apprendre, comprendre, progresser — un jour après l’autre.</p>
+      <button type="button" (click)="logout()">Se déconnecter</button>
+    </footer>
+  }
+</main>

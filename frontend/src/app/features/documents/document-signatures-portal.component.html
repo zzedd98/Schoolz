@@ -1,0 +1,175 @@
+<main class="signature-portal" [attr.dir]="i18n.locale() === 'ar-MA' ? 'rtl' : 'ltr'">
+  <header>
+    <a routerLink="/family"><span>SZ</span> SchoolZ</a>
+    <nav>
+      <a routerLink="/documents">{{ text('Documents', 'الوثائق') }}</a>
+      <a class="active" routerLink="/signatures">{{ text('Signatures', 'التوقيعات') }}</a>
+      <a routerLink="/messages">{{ text('Messages', 'الرسائل') }}</a>
+    </nav>
+    <button type="button" (click)="toggleLocale()">
+      {{ i18n.locale() === 'ar-MA' ? 'FR' : 'ع' }}
+    </button>
+  </header>
+
+  @if (authRequired()) {
+    <section class="login">
+      <div aria-busy="true">
+        <p class="eyebrow">VALIDATION DOCUMENTAIRE</p>
+        <h1>{{ text('Session expirée', 'انتهت صلاحية الجلسة') }}</h1>
+        <p>
+          {{
+            text('Redirection vers la connexion sécurisée…', 'جار التحويل إلى صفحة الدخول الآمنة…')
+          }}
+        </p>
+      </div>
+    </section>
+  } @else if (dashboard(); as dashboard) {
+    <section class="hero">
+      <p class="eyebrow">SIGNATURES · {{ dashboard.parentName }}</p>
+      <h1>{{ text('Mes validations documentaires', 'مصادقاتي على الوثائق') }}</h1>
+      <p>{{ text(dashboard.legalNotice['fr'], dashboard.legalNotice['ar']) }}</p>
+    </section>
+
+    @if (error()) {
+      <p class="feedback error">{{ error() }}</p>
+    }
+    @if (notice()) {
+      <p class="feedback success">{{ notice() }}</p>
+    }
+
+    <section class="workspace">
+      <aside>
+        @for (workflow of dashboard.workflows; track workflow.id) {
+          <button
+            type="button"
+            [class.active]="selectedId() === workflow.id"
+            (click)="choose(workflow)"
+          >
+            <span>{{ workflow.status }}</span
+            ><strong>{{ workflow.documentTitle }}</strong
+            ><small
+              >v{{ workflow.versionNumber }} ·
+              {{ workflow.generatedAt | date: 'dd/MM/yyyy' }}</small
+            >
+          </button>
+        } @empty {
+          <p>{{ text('Aucun document à valider.', 'لا توجد وثائق للمصادقة.') }}</p>
+        }
+      </aside>
+
+      <article class="document">
+        @if (selected(); as workflow) {
+          <div class="title-row">
+            <div>
+              <span>{{ workflow.documentType }}</span>
+              <h2>{{ workflow.documentTitle }}</h2>
+              <p>{{ workflow.fileName }} · SHA-256 {{ workflow.documentSha256.slice(0, 20) }}…</p>
+            </div>
+            <button type="button" (click)="download()" [disabled]="workflow.status === 'GENERATED'">
+              {{ text('Télécharger', 'تنزيل') }}
+            </button>
+          </div>
+
+          <div class="steps">
+            @for (status of statuses; track status; let index = $index) {
+              <div [class.reached]="reached(workflow, status)">
+                <span>{{ index + 1 }}</span
+                ><strong>{{ status }}</strong>
+              </div>
+            }
+          </div>
+
+          @if (workflow.status === 'SENT') {
+            <section class="action-card">
+              <h3>{{ text('1. Consulter', '1. الاطلاع') }}</h3>
+              <p>
+                {{
+                  text(
+                    'Ouvrez le document et enregistrez la consultation.',
+                    'افتح الوثيقة وسجّل الاطلاع عليها.'
+                  )
+                }}
+              </p>
+              <button class="primary" type="button" (click)="open()">
+                {{ text('J’ai consulté le document', 'اطلعت على الوثيقة') }}
+              </button>
+            </section>
+          } @else if (workflow.status === 'VIEWED') {
+            <section class="action-card">
+              <h3>{{ text('2. Accepter', '2. القبول') }}</h3>
+              <label class="check"
+                ><input type="checkbox" [(ngModel)]="consent" />{{
+                  text(
+                    'J’accepte explicitement le contenu de cette version.',
+                    'أوافق صراحة على محتوى هذه النسخة.'
+                  )
+                }}</label
+              ><button class="primary" type="button" (click)="accept()" [disabled]="!consent">
+                {{ text('Enregistrer mon acceptation', 'تسجيل موافقتي') }}
+              </button>
+            </section>
+          } @else if (workflow.status === 'ACCEPTED') {
+            <section class="action-card">
+              <h3>{{ text('3. Signer simplement', '3. التوقيع البسيط') }}</h3>
+              <label
+                >{{ text('Nom complet du signataire', 'الاسم الكامل للموقع')
+                }}<input [(ngModel)]="signatoryName" /></label
+              ><label class="check"
+                ><input type="checkbox" [(ngModel)]="signatureConfirmed" />{{
+                  text(
+                    'Je comprends que cette preuve n’est pas une signature qualifiée.',
+                    'أفهم أن هذا الإثبات ليس توقيعاً مؤهلاً.'
+                  )
+                }}</label
+              ><button
+                class="primary"
+                type="button"
+                (click)="sign()"
+                [disabled]="!signatureConfirmed || !signatoryName.trim()"
+              >
+                {{ text('Signer cette version', 'توقيع هذه النسخة') }}
+              </button>
+            </section>
+          } @else if (workflow.status === 'SIGNED') {
+            <section class="signed">
+              <span>✓</span>
+              <div>
+                <h3>{{ text('Parcours terminé', 'اكتمل المسار') }}</h3>
+                <p>
+                  {{ workflow.signatoryName }} ·
+                  {{ workflow.signedAt | date: 'dd/MM/yyyy HH:mm:ss' }}
+                </p>
+                <code>{{ workflow.evidenceSha256 }}</code>
+              </div>
+            </section>
+          } @else {
+            <section class="waiting">
+              <p>
+                {{
+                  text(
+                    'Ce document est en préparation par l’établissement.',
+                    'تقوم المؤسسة بإعداد هذه الوثيقة.'
+                  )
+                }}
+              </p>
+            </section>
+          }
+
+          <details>
+            <summary>{{ text('Voir l’historique des validations', 'عرض سجل المصادقات') }}</summary>
+            @for (event of workflow.events; track event.id) {
+              <p>
+                <strong>{{ event.toStatus }}</strong> · {{ event.actorName }} ·
+                {{ event.occurredAt | date: 'dd/MM/yyyy HH:mm:ss' }} · IP
+                {{ event.ipAddress || '—' }}
+              </p>
+            }
+          </details>
+        }
+      </article>
+    </section>
+    <footer>
+      <button type="button" (click)="logout()">{{ text('Se déconnecter', 'تسجيل الخروج') }}</button>
+    </footer>
+  }
+</main>

@@ -1,0 +1,638 @@
+<main class="timetable-page">
+  <header class="page-hero">
+    <div>
+      <span class="eyebrow">{{ text('Organisation scolaire', 'التنظيم المدرسي') }}</span>
+      <h1>{{ text('Emploi du temps', 'جدول الحصص') }}</h1>
+      <p>
+        {{
+          text(
+            'Construisez, contrôlez et optimisez le planning hebdomadaire sans conflit.',
+            'أنشئ الجدول الأسبوعي وتحقق منه وحسّنه بدون تعارضات.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="hero-actions">
+      <button class="ghost" type="button" (click)="openEditor('SCHEDULE')">
+        + {{ text('Nouveau planning', 'جدول جديد') }}
+      </button>
+      <button
+        class="optimize"
+        type="button"
+        [disabled]="busy() || !isEditable()"
+        (click)="proposeOptimization()"
+      >
+        <span aria-hidden="true">✦</span> {{ text('Proposer un planning', 'اقتراح جدول') }}
+      </button>
+      <button
+        class="primary"
+        type="button"
+        [disabled]="busy() || !isEditable()"
+        (click)="publish()"
+      >
+        {{ text('Publier', 'نشر') }}
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="notice error" role="alert">{{ error() }}</div>
+  }
+  @if (message()) {
+    <div class="notice success" role="status">{{ message() }}</div>
+  }
+
+  <section class="control-bar" aria-label="Filtres du planning">
+    <label>
+      <span>{{ text('Planning', 'الجدول') }}</span>
+      <select [value]="selectedScheduleId()" (change)="selectSchedule($event)">
+        @for (schedule of schedules(); track schedule.id) {
+          <option [value]="schedule.id">{{ schedule.name }} · {{ schedule.campusName }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ text('Classe', 'القسم') }}</span>
+      <select [ngModel]="selectedClassroomId()" (ngModelChange)="selectedClassroomId.set($event)">
+        <option value="">{{ text('Toutes les classes', 'كل الأقسام') }}</option>
+        @for (classroom of references()?.classrooms ?? []; track classroom.id) {
+          @if (!board() || classroom.campusId === board()?.schedule?.campusId) {
+            <option [value]="classroom.id">{{ classroom.name }}</option>
+          }
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ text('Enseignant', 'الأستاذ') }}</span>
+      <select [ngModel]="selectedTeacherId()" (ngModelChange)="selectedTeacherId.set($event)">
+        <option value="">{{ text('Tous les enseignants', 'كل الأساتذة') }}</option>
+        @for (teacher of references()?.teachers ?? []; track teacher.id) {
+          <option [value]="teacher.id">{{ teacher.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ text('Vue salle', 'عرض القاعة') }}</span>
+      <select [ngModel]="selectedRoomFilter()" (ngModelChange)="selectedRoomFilter.set($event)">
+        <option value="">{{ text('Toutes les salles', 'كل القاعات') }}</option>
+        @for (room of board()?.rooms ?? []; track room.id) {
+          <option [value]="room.id">{{ room.name }}</option>
+        }
+      </select>
+    </label>
+    <label class="target-room">
+      <span>{{ text('Salle de dépôt', 'قاعة الإيداع') }}</span>
+      <select [ngModel]="targetRoomId()" (ngModelChange)="targetRoomId.set($event)">
+        @for (room of board()?.rooms ?? []; track room.id) {
+          <option [value]="room.id">{{ room.code }} · {{ room.capacity }}</option>
+        }
+      </select>
+    </label>
+  </section>
+
+  @if (board(); as current) {
+    <section class="metrics" aria-label="Résumé">
+      <article>
+        <span>{{ text('Statut', 'الحالة') }}</span>
+        <strong [class.published]="current.schedule.status === 'PUBLISHED'">
+          {{
+            current.schedule.status === 'DRAFT'
+              ? text('Brouillon', 'مسودة')
+              : text('Publié', 'منشور')
+          }}
+        </strong>
+      </article>
+      <article>
+        <span>{{ text('Cours placés', 'الحصص المبرمجة') }}</span>
+        <strong>{{ current.lessons.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Affectations', 'التكليفات') }}</span>
+        <strong>{{ current.assignments.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Contraintes', 'القيود') }}</span>
+        <strong>{{ current.constraints.length + current.availabilities.length }}</strong>
+      </article>
+    </section>
+
+    <section class="planning-layout">
+      <aside class="assignment-rail">
+        <div class="rail-head">
+          <div>
+            <span class="eyebrow">{{ text('À planifier', 'في انتظار البرمجة') }}</span>
+            <h2>{{ text('Affectations', 'التكليفات') }}</h2>
+          </div>
+          <button type="button" (click)="openEditor('ASSIGNMENT')" [disabled]="!isEditable()">
+            +
+          </button>
+        </div>
+        <p class="rail-hint">
+          {{
+            text(
+              'Glissez une matière vers un créneau, ou sélectionnez-la puis touchez une case.',
+              'اسحب المادة نحو توقيت أو اخترها ثم اضغط على خانة.'
+            )
+          }}
+        </p>
+        <div class="assignment-list">
+          @for (assignment of filteredAssignments(); track assignment.id) {
+            <button
+              class="assignment-card"
+              type="button"
+              [class.selected]="selectedAssignmentId() === assignment.id"
+              [class.complete]="remaining(assignment) === 0"
+              [style.--subject-color]="assignment.color"
+              [attr.draggable]="isEditable()"
+              (dragstart)="startDrag('ASSIGNMENT', assignment.id, $event)"
+              (click)="selectAssignment(assignment.id)"
+            >
+              <span class="subject-dot"></span>
+              <span class="assignment-copy">
+                <strong>{{ assignment.subjectName }}</strong>
+                <small>{{ assignment.classroomName }} · {{ assignment.teacherName }}</small>
+                @if (assignment.requiredRoomType || assignment.requiredEquipment.length) {
+                  <small class="requirements">
+                    {{ assignment.requiredRoomType || text('Salle standard', 'قاعة عادية') }}
+                    @if (assignment.requiredEquipment.length) {
+                      · {{ assignment.requiredEquipment.join(', ') }}
+                    }
+                  </small>
+                }
+              </span>
+              <span class="remaining">
+                {{ placedCount(assignment.id) }}/{{ assignment.weeklyPeriods }}
+              </span>
+            </button>
+          } @empty {
+            <div class="empty-rail">
+              {{ text('Aucune affectation pour ce filtre.', 'لا توجد تكليفات لهذا المرشح.') }}
+            </div>
+          }
+        </div>
+        <div class="rail-actions">
+          <button type="button" (click)="openEditor('SUBJECT')" [disabled]="!isEditable()">
+            {{ text('Nouvelle matière', 'مادة جديدة') }}
+          </button>
+          <button type="button" (click)="openEditor('CONSTRAINT')" [disabled]="!isEditable()">
+            {{ text('Règle enseignant', 'قاعدة الأستاذ') }}
+          </button>
+          <button type="button" (click)="openEditor('AVAILABILITY')" [disabled]="!isEditable()">
+            {{ text('Indisponibilité', 'عدم التوفر') }}
+          </button>
+          <button type="button" (click)="openEditor('ROOM')" [disabled]="!isEditable()">
+            {{ text('Équipement salle', 'تجهيز القاعة') }}
+          </button>
+        </div>
+      </aside>
+
+      <div class="calendar-shell">
+        <div class="calendar-caption">
+          <div>
+            <strong>{{ current.schedule.name }}</strong>
+            <span>{{ current.schedule.validFrom }} → {{ current.schedule.validTo }}</span>
+          </div>
+          <div class="legend">
+            <span><i class="manual"></i>{{ text('Manuel', 'يدوي') }}</span>
+            <span><i class="automatic"></i>{{ text('Optimiseur', 'المحسن') }}</span>
+          </div>
+        </div>
+        <div
+          class="calendar"
+          role="grid"
+          [attr.aria-label]="text('Planning hebdomadaire', 'الجدول الأسبوعي')"
+        >
+          <div class="corner" role="columnheader">{{ text('Heure', 'الوقت') }}</div>
+          @for (day of days; track day) {
+            <div class="day-head" role="columnheader">
+              <span>{{ dayName(day) }}</span>
+              <small>{{ text('Journée', 'يوم') }} {{ day }}</small>
+            </div>
+          }
+          @for (period of current.periods; track period.id) {
+            <div class="time-head" [class.break]="!period.teaching" role="rowheader">
+              <strong>{{ period.startsAt.slice(0, 5) }}</strong>
+              <span>{{ period.endsAt.slice(0, 5) }}</span>
+              @if (!period.teaching) {
+                <small>{{ text('Pause', 'استراحة') }}</small>
+              }
+            </div>
+            @for (day of days; track day) {
+              @let currentSlot = slot(day, period.id);
+              <div
+                class="calendar-cell"
+                [class.break]="!period.teaching"
+                [class.selectable]="selectedAssignmentId() && period.teaching && isEditable()"
+                role="gridcell"
+                tabindex="0"
+                (dragover)="allowDrop($event)"
+                (drop)="currentSlot && drop(currentSlot, $event)"
+                (click)="currentSlot && placeSelected(currentSlot)"
+                (keydown.enter)="currentSlot && placeSelected(currentSlot)"
+              >
+                @if (currentSlot) {
+                  @for (lesson of lessons(currentSlot.id); track lesson.id) {
+                    <article
+                      class="lesson-card"
+                      [class.optimizer]="lesson.source === 'OPTIMIZER'"
+                      [style.--subject-color]="lesson.color"
+                      [attr.draggable]="isEditable()"
+                      tabindex="0"
+                      (dragstart)="startDrag('LESSON', lesson.id, $event)"
+                      (click)="$event.stopPropagation()"
+                      (keydown.enter)="$event.stopPropagation()"
+                    >
+                      <div class="lesson-topline">
+                        <span>{{ lesson.subjectName }}</span>
+                        @if (isEditable()) {
+                          <button
+                            type="button"
+                            (click)="deleteLesson(lesson); $event.stopPropagation()"
+                            [attr.aria-label]="text('Retirer le cours', 'حذف الحصة')"
+                          >
+                            ×
+                          </button>
+                        }
+                      </div>
+                      <strong>{{ lesson.classroomName }}</strong>
+                      <small>{{ lesson.teacherName }}</small>
+                      <small>{{ lesson.roomName }}</small>
+                    </article>
+                  }
+                  @if (lessons(currentSlot.id).length === 0 && period.teaching) {
+                    <span class="drop-hint">+</span>
+                  }
+                }
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </section>
+  } @else {
+    <section class="empty-state">
+      <span aria-hidden="true">▦</span>
+      <h2>{{ text('Aucun planning', 'لا يوجد جدول') }}</h2>
+      <p>{{ text('Créez le premier planning hebdomadaire.', 'أنشئ أول جدول أسبوعي.') }}</p>
+      <button class="primary" type="button" (click)="openEditor('SCHEDULE')">
+        {{ text('Créer le planning', 'إنشاء الجدول') }}
+      </button>
+    </section>
+  }
+
+  @if (busy()) {
+    <div class="busy-bar" aria-label="Chargement"></div>
+  }
+</main>
+
+@if (editor(); as mode) {
+  <div class="overlay">
+    <section class="editor-panel" role="dialog" aria-modal="true">
+      <header>
+        <div>
+          <span class="eyebrow">{{ text('Configuration', 'الإعدادات') }}</span>
+          <h2>
+            @if (mode === 'SCHEDULE') {
+              {{ text('Nouveau planning', 'جدول جديد') }}
+            }
+            @if (mode === 'SUBJECT') {
+              {{ text('Nouvelle matière', 'مادة جديدة') }}
+            }
+            @if (mode === 'ASSIGNMENT') {
+              {{ text('Nouvelle affectation', 'تكليف جديد') }}
+            }
+            @if (mode === 'CONSTRAINT') {
+              {{ text('Contrainte enseignant', 'قيد الأستاذ') }}
+            }
+            @if (mode === 'AVAILABILITY') {
+              {{ text('Disponibilité', 'التوفر') }}
+            }
+            @if (mode === 'ROOM') {
+              {{ text('Équipement de salle', 'تجهيز القاعة') }}
+            }
+          </h2>
+        </div>
+        <button type="button" (click)="closeEditor()" aria-label="Fermer">×</button>
+      </header>
+
+      @if (mode === 'SCHEDULE') {
+        <div class="form-grid">
+          <label
+            ><span>{{ text('Campus', 'المؤسسة') }}</span
+            ><select [(ngModel)]="newScheduleCampus">
+              @for (campus of references()?.campuses ?? []; track campus.id) {
+                <option [value]="campus.id">{{ campus.name }}</option>
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Année scolaire', 'السنة الدراسية') }}</span
+            ><select [(ngModel)]="newScheduleYear">
+              @for (year of references()?.years ?? []; track year.id) {
+                <option [value]="year.id">{{ year.name }}</option>
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Code', 'الرمز') }}</span
+            ><input [(ngModel)]="newScheduleCode"
+          /></label>
+          <label
+            ><span>{{ text('Nom', 'الاسم') }}</span
+            ><input [(ngModel)]="newScheduleName"
+          /></label>
+          <label
+            ><span>{{ text('Du', 'من') }}</span
+            ><input type="date" [(ngModel)]="newScheduleFrom"
+          /></label>
+          <label
+            ><span>{{ text('Au', 'إلى') }}</span
+            ><input type="date" [(ngModel)]="newScheduleTo"
+          /></label>
+        </div>
+        <p class="form-note">
+          {{
+            text(
+              'Six périodes de cours, du lundi au vendredi, seront créées. Elles restent configurables par API.',
+              'سيتم إنشاء ست فترات من الاثنين إلى الجمعة.'
+            )
+          }}
+        </p>
+        <button class="primary full" type="button" (click)="createSchedule()" [disabled]="busy()">
+          {{ text('Créer', 'إنشاء') }}
+        </button>
+      }
+
+      @if (mode === 'SUBJECT') {
+        <div class="form-grid">
+          <label
+            ><span>{{ text('Code', 'الرمز') }}</span
+            ><input [(ngModel)]="newSubjectCode" placeholder="MATH"
+          /></label>
+          <label
+            ><span>{{ text('Couleur', 'اللون') }}</span
+            ><input type="color" [(ngModel)]="newSubjectColor"
+          /></label>
+          <label class="wide"
+            ><span>{{ text('Nom français', 'الاسم بالفرنسية') }}</span
+            ><input [(ngModel)]="newSubjectNameFr"
+          /></label>
+          <label class="wide"
+            ><span>{{ text('Nom arabe', 'الاسم بالعربية') }}</span
+            ><input dir="rtl" [(ngModel)]="newSubjectNameAr"
+          /></label>
+        </div>
+        <button class="primary full" type="button" (click)="createSubject()" [disabled]="busy()">
+          {{ text('Enregistrer', 'حفظ') }}
+        </button>
+      }
+
+      @if (mode === 'ASSIGNMENT') {
+        <div class="form-grid">
+          <label
+            ><span>{{ text('Classe', 'القسم') }}</span
+            ><select [(ngModel)]="assignmentClassroom">
+              @for (classroom of references()?.classrooms ?? []; track classroom.id) {
+                @if (classroom.campusId === board()?.schedule?.campusId) {
+                  <option [value]="classroom.id">{{ classroom.name }}</option>
+                }
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Matière', 'المادة') }}</span
+            ><select [(ngModel)]="assignmentSubject">
+              @for (subject of board()?.subjects ?? []; track subject.id) {
+                <option [value]="subject.id">{{ subject.nameFr }}</option>
+              }
+            </select></label
+          >
+          <label class="wide"
+            ><span>{{ text('Enseignant', 'الأستاذ') }}</span
+            ><select [(ngModel)]="assignmentTeacher">
+              @for (teacher of references()?.teachers ?? []; track teacher.id) {
+                <option [value]="teacher.id">{{ teacher.name }}</option>
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Périodes / semaine', 'فترات أسبوعية') }}</span
+            ><input type="number" min="1" max="20" [(ngModel)]="assignmentWeekly"
+          /></label>
+          <label
+            ><span>{{ text('Type de salle requis', 'نوع القاعة المطلوب') }}</span
+            ><select [(ngModel)]="assignmentRoomType">
+              <option value="">{{ text('Indifférent', 'غير محدد') }}</option>
+              <option value="CLASSROOM">CLASSROOM</option>
+              <option value="LAB">LAB</option>
+            </select></label
+          >
+          <label class="wide"
+            ><span>{{
+              text('Équipements requis (séparés par virgule)', 'التجهيزات المطلوبة')
+            }}</span
+            ><input [(ngModel)]="assignmentEquipment" placeholder="VIDEO_PROJECTOR, WHITEBOARD"
+          /></label>
+        </div>
+        <button class="primary full" type="button" (click)="createAssignment()" [disabled]="busy()">
+          {{ text('Créer l’affectation', 'إنشاء التكليف') }}
+        </button>
+      }
+
+      @if (mode === 'CONSTRAINT') {
+        <div class="form-grid">
+          <label class="wide"
+            ><span>{{ text('Enseignant', 'الأستاذ') }}</span
+            ><select [(ngModel)]="constraintTeacher">
+              @for (teacher of references()?.teachers ?? []; track teacher.id) {
+                <option [value]="teacher.id">{{ teacher.name }}</option>
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Règle', 'القاعدة') }}</span
+            ><select [(ngModel)]="constraintType">
+              <option value="MAX_HOURS_PER_DAY">
+                {{ text('Maximum / jour', 'الحد الأقصى يومياً') }}
+              </option>
+              <option value="MAX_CONSECUTIVE_HOURS">
+                {{ text('Maximum consécutif', 'الحد المتتالي') }}
+              </option>
+            </select></label
+          >
+          <label
+            ><span>{{ text('Nombre de périodes', 'عدد الفترات') }}</span
+            ><input type="number" min="1" max="10" [(ngModel)]="constraintMaximum"
+          /></label>
+          <label class="check wide"
+            ><input type="checkbox" [(ngModel)]="constraintHard" /><span>{{
+              text('Contrainte bloquante', 'قيد إلزامي')
+            }}</span></label
+          >
+        </div>
+        <button class="primary full" type="button" (click)="saveConstraint()" [disabled]="busy()">
+          {{ text('Enregistrer la règle', 'حفظ القاعدة') }}
+        </button>
+      }
+
+      @if (mode === 'AVAILABILITY') {
+        <div class="form-grid">
+          <label
+            ><span>{{ text('Cible', 'الهدف') }}</span
+            ><select [(ngModel)]="availabilityTargetType" (change)="availabilityTypeChanged()">
+              <option value="TEACHER">{{ text('Enseignant', 'أستاذ') }}</option>
+              <option value="ROOM">{{ text('Salle', 'قاعة') }}</option>
+            </select></label
+          >
+          <label
+            ><span>{{ text('État', 'الحالة') }}</span
+            ><select [(ngModel)]="availabilityValue">
+              <option value="UNAVAILABLE">{{ text('Indisponible', 'غير متاح') }}</option>
+              <option value="PREFERRED">{{ text('Préféré', 'مفضل') }}</option>
+              <option value="AVOID">{{ text('À éviter', 'يفضل تجنبه') }}</option>
+              <option value="AVAILABLE">{{ text('Disponible', 'متاح') }}</option>
+            </select></label
+          >
+          <label class="wide"
+            ><span>{{
+              availabilityTargetType === 'TEACHER'
+                ? text('Enseignant', 'الأستاذ')
+                : text('Salle', 'القاعة')
+            }}</span
+            ><select [(ngModel)]="availabilityTarget">
+              @if (availabilityTargetType === 'TEACHER') {
+                @for (teacher of references()?.teachers ?? []; track teacher.id) {
+                  <option [value]="teacher.id">{{ teacher.name }}</option>
+                }
+              } @else {
+                @for (room of board()?.rooms ?? []; track room.id) {
+                  <option [value]="room.id">{{ room.name }}</option>
+                }
+              }
+            </select></label
+          >
+          <label class="wide"
+            ><span>{{ text('Créneau', 'الفترة') }}</span
+            ><select [(ngModel)]="availabilitySlot">
+              @for (slotValue of board()?.timeSlots ?? []; track slotValue.id) {
+                @if (slotValue.teaching) {
+                  <option [value]="slotValue.id">
+                    {{ slotLabel(slotValue.id) }} · {{ slotValue.endsAt.slice(0, 5) }}
+                  </option>
+                }
+              }
+            </select></label
+          >
+          <label class="wide"
+            ><span>{{ text('Note', 'ملاحظة') }}</span
+            ><input [(ngModel)]="availabilityNote"
+          /></label>
+        </div>
+        <button class="primary full" type="button" (click)="saveAvailability()" [disabled]="busy()">
+          {{ text('Enregistrer', 'حفظ') }}
+        </button>
+      }
+
+      @if (mode === 'ROOM') {
+        <div class="form-grid">
+          <label class="wide"
+            ><span>{{ text('Salle', 'القاعة') }}</span
+            ><select [(ngModel)]="equipmentRoom">
+              @for (room of board()?.rooms ?? []; track room.id) {
+                <option [value]="room.id">
+                  {{ room.name }} · {{ room.roomType }} · {{ room.capacity }}
+                </option>
+              }
+            </select></label
+          >
+          <label class="wide"
+            ><span>{{ text('Code équipement', 'رمز التجهيز') }}</span
+            ><input [(ngModel)]="equipmentCode" placeholder="VIDEO_PROJECTOR"
+          /></label>
+        </div>
+        <button class="primary full" type="button" (click)="addEquipment()" [disabled]="busy()">
+          {{ text('Ajouter', 'إضافة') }}
+        </button>
+      }
+    </section>
+  </div>
+}
+
+@if (conflicts().length) {
+  <div class="overlay conflict-overlay">
+    <section class="conflict-dialog" role="alertdialog">
+      <span class="conflict-icon" aria-hidden="true">!</span>
+      <h2>{{ text('Placement impossible', 'يتعذر وضع الحصة') }}</h2>
+      <p>
+        {{ text('Le moteur a détecté les conflits suivants :', 'اكتشف المحرك التعارضات التالية:') }}
+      </p>
+      <ul>
+        @for (conflict of conflicts(); track conflict.code) {
+          <li>
+            <strong>{{ conflict.code }}</strong
+            ><span>{{ conflict.message }}</span>
+          </li>
+        }
+      </ul>
+      <button class="primary full" type="button" (click)="closeConflict()">
+        {{ text('Compris', 'حسناً') }}
+      </button>
+    </section>
+  </div>
+}
+
+@if (optimization(); as proposal) {
+  <div class="overlay">
+    <section class="optimization-dialog" role="dialog" aria-modal="true">
+      <header>
+        <div>
+          <span class="eyebrow">{{ text('Moteur de contraintes', 'محرك القيود') }}</span>
+          <h2>{{ text('Proposition prête', 'الاقتراح جاهز') }}</h2>
+        </div>
+        <button type="button" (click)="closeOptimization()">×</button>
+      </header>
+      <div class="optimization-summary">
+        <article>
+          <strong>{{ proposal.proposals.length }}</strong
+          ><span>{{ text('cours proposés', 'حصص مقترحة') }}</span>
+        </article>
+        <article>
+          <strong>{{ unscheduledCount(proposal.unscheduled) }}</strong
+          ><span>{{ text('non planifiés', 'غير مبرمجة') }}</span>
+        </article>
+        <article>
+          <strong>{{ proposal.score }}</strong
+          ><span>{{ text('coût souple', 'تكلفة مرنة') }}</span>
+        </article>
+      </div>
+      <div class="proposal-list">
+        @for (item of proposal.proposals; track $index) {
+          <div>
+            <span>{{ assignmentLabel(item.assignmentId) }}</span
+            ><strong>{{ slotLabel(item.slotId) }}</strong>
+          </div>
+        }
+      </div>
+      <p class="form-note">
+        {{
+          text(
+            'Aucune écriture n’a encore été faite. Vérifiez puis appliquez explicitement cette proposition.',
+            'لم يتم حفظ أي تغيير بعد. تحقق ثم طبّق الاقتراح صراحةً.'
+          )
+        }}
+      </p>
+      <div class="dialog-actions">
+        <button type="button" class="ghost" (click)="closeOptimization()">
+          {{ text('Annuler', 'إلغاء') }}</button
+        ><button
+          type="button"
+          class="primary"
+          [disabled]="!proposal.proposals.length"
+          (click)="applyOptimization()"
+        >
+          {{ text('Appliquer', 'تطبيق') }}
+        </button>
+      </div>
+    </section>
+  </div>
+}

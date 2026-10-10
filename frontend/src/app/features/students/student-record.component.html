@@ -1,0 +1,245 @@
+<main class="record-page">
+  <a class="back-link" routerLink="/app/students">← {{ i18n.translate('student.back') }}</a>
+
+  @if (loading()) {
+    <div class="page-state">{{ i18n.translate('common.loading') }}</div>
+  } @else if (failed() || !record()) {
+    <div class="page-state error">{{ i18n.translate('student.error') }}</div>
+  } @else {
+    @let student = record()!;
+    <header class="profile-header">
+      <div class="profile-avatar">{{ initials(student) }}</div>
+      <div class="profile-name">
+        <p>{{ i18n.translate('student.eyebrow') }}</p>
+        <h1>{{ student.identity.firstName }} {{ student.identity.lastName }}</h1>
+        <div>
+          <span>{{ student.identifiers[0]?.value ?? '—' }}</span>
+          <span [class.archived]="student.identity.status === 'ARCHIVED'">
+            {{
+              i18n.translate(
+                student.identity.status === 'ACTIVE' ? 'students.active' : 'students.archived'
+              )
+            }}
+          </span>
+        </div>
+      </div>
+      <dl class="profile-facts">
+        <div>
+          <dt>{{ i18n.translate('students.birthDate') }}</dt>
+          <dd>{{ student.identity.birthDate }}</dd>
+        </div>
+        <div>
+          <dt>{{ i18n.translate('student.nationality') }}</dt>
+          <dd>{{ student.identity.nationalityCode ?? '—' }}</dd>
+        </div>
+        <div>
+          <dt>{{ i18n.translate('students.classroom') }}</dt>
+          <dd>{{ student.enrollments[0]?.classroomName ?? '—' }}</dd>
+        </div>
+      </dl>
+      @if (auth.hasPermission('student.write') && student.identity.status !== 'ARCHIVED') {
+        <button mat-stroked-button type="button" (click)="archivePanel.set(true)">
+          {{ i18n.translate('student.archive') }}
+        </button>
+      }
+    </header>
+
+    @if (archivePanel()) {
+      <section class="archive-panel">
+        <div>
+          <strong>{{ i18n.translate('student.archiveTitle') }}</strong>
+          <p>{{ i18n.translate('student.archiveHelp') }}</p>
+        </div>
+        <input
+          [formControl]="archiveReason"
+          [placeholder]="i18n.translate('student.archiveReason')"
+        />
+        <button mat-flat-button type="button" [disabled]="archiving()" (click)="archive()">
+          {{ i18n.translate('student.confirmArchive') }}
+        </button>
+        <button mat-button type="button" (click)="archivePanel.set(false)">
+          {{ i18n.translate('common.cancel') }}
+        </button>
+      </section>
+    }
+
+    <nav class="section-tabs" [attr.aria-label]="i18n.translate('student.sections')">
+      @for (section of sections; track section.id) {
+        <button
+          type="button"
+          [class.active]="activeSection() === section.id"
+          (click)="activeSection.set(section.id)"
+        >
+          {{ i18n.translate(section.key) }}
+        </button>
+      }
+    </nav>
+
+    <section class="record-content">
+      @switch (activeSection()) {
+        @case ('identity') {
+          <div class="content-grid">
+            <article class="panel">
+              <p class="panel-index">01</p>
+              <h2>{{ i18n.translate('student.identity') }}</h2>
+              <dl class="detail-list">
+                <div>
+                  <dt>{{ i18n.translate('student.fullName') }}</dt>
+                  <dd>{{ student.identity.firstName }} {{ student.identity.lastName }}</dd>
+                </div>
+                <div>
+                  <dt>{{ i18n.translate('student.preferredName') }}</dt>
+                  <dd>{{ student.identity.preferredName ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>{{ i18n.translate('student.gender') }}</dt>
+                  <dd>{{ student.identity.gender ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>{{ i18n.translate('student.nationality') }}</dt>
+                  <dd>{{ student.identity.nationalityCode ?? '—' }}</dd>
+                </div>
+              </dl>
+            </article>
+            <article class="panel">
+              <p class="panel-index">02</p>
+              <h2>{{ i18n.translate('student.address') }}</h2>
+              @for (address of student.addresses; track address.line1) {
+                <address>
+                  {{ address.line1 }}<br />{{ address.postalCode }} {{ address.city }}<br />{{
+                    address.region
+                  }}
+                </address>
+              } @empty {
+                <p class="empty-copy">{{ i18n.translate('student.noData') }}</p>
+              }
+            </article>
+            <article class="panel wide">
+              <p class="panel-index">03</p>
+              <h2>{{ i18n.translate('student.customFields') }}</h2>
+              <div class="custom-fields">
+                @for (field of student.customFields | keyvalue; track field.key) {
+                  <span
+                    ><small>{{ field.key }}</small
+                    ><strong>{{ field.value }}</strong></span
+                  >
+                } @empty {
+                  <p class="empty-copy">{{ i18n.translate('student.noData') }}</p>
+                }
+              </div>
+            </article>
+          </div>
+        }
+        @case ('family') {
+          <div class="content-grid">
+            <article class="panel wide">
+              <p class="panel-index">01</p>
+              <h2>{{ i18n.translate('student.guardians') }}</h2>
+              <div class="people-grid">
+                @for (guardian of student.guardians; track guardian.id) {
+                  <div class="person-card">
+                    <span>{{ guardian.firstName[0] }}{{ guardian.lastName[0] }}</span>
+                    <div>
+                      <strong>{{ guardian.firstName }} {{ guardian.lastName }}</strong
+                      ><small>{{ guardian.relationship }} · {{ guardian.occupation ?? '—' }}</small>
+                      <p>{{ guardian.phone }} · {{ guardian.email }}</p>
+                    </div>
+                    @if (guardian.legalGuardian) {
+                      <em>{{ i18n.translate('student.legalGuardian') }}</em>
+                    }
+                  </div>
+                }
+              </div>
+            </article>
+            <article class="panel wide">
+              <p class="panel-index">02</p>
+              <h2>{{ i18n.translate('student.emergency') }}</h2>
+              @for (contact of student.emergencyContacts; track contact.id) {
+                <div class="emergency-row">
+                  <b>{{ contact.priority }}</b
+                  ><strong>{{ contact.displayName }}</strong
+                  ><span>{{ contact.relationship }}</span
+                  ><a [href]="'tel:' + contact.phone">{{ contact.phone }}</a>
+                </div>
+              }
+            </article>
+          </div>
+        }
+        @case ('schooling') {
+          <article class="panel">
+            <p class="panel-index">01</p>
+            <h2>{{ i18n.translate('student.schooling') }}</h2>
+            <div class="timeline">
+              @for (enrollment of student.enrollments; track enrollment.id) {
+                <div>
+                  <i></i><span>{{ enrollment.academicYearName }}</span
+                  ><strong>{{ enrollment.gradeLevelName }} · {{ enrollment.classroomName }}</strong>
+                  <p>{{ enrollment.campusName }} — {{ enrollment.enrolledOn }}</p>
+                </div>
+              }
+            </div>
+          </article>
+        }
+        @case ('documents') {
+          <article class="panel">
+            <p class="panel-index">01</p>
+            <h2>{{ i18n.translate('student.documents') }}</h2>
+            <div class="document-list">
+              @for (document of student.documents; track document.id) {
+                <div>
+                  <span>PDF</span><strong>{{ document.title }}</strong
+                  ><small>{{ document.type }} · {{ document.status }}</small>
+                </div>
+              } @empty {
+                <p class="empty-copy">{{ i18n.translate('student.noData') }}</p>
+              }
+            </div>
+          </article>
+        }
+        @case ('health') {
+          @if (auth.hasPermission('health.read')) {
+            <article class="panel wide">
+              <p class="panel-index">ACCÈS RESTREINT</p>
+              <h2>{{ i18n.translate('student.health') }}</h2>
+              <p class="empty-copy">
+                Les informations de santé sont séparées du dossier administratif et chaque
+                consultation est conservée dans l’historique.
+              </p>
+              <a mat-flat-button [routerLink]="['/app/health']"> Ouvrir l’espace santé sécurisé </a>
+            </article>
+          } @else {
+            <article class="pending-panel">
+              <span aria-hidden="true">◇</span>
+              <p class="panel-index">DONNÉES SENSIBLES</p>
+              <h2>Accès non autorisé</h2>
+              <p>Une permission santé dédiée est nécessaire pour consulter ces informations.</p>
+            </article>
+          }
+        }
+        @case ('history') {
+          <article class="panel">
+            <p class="panel-index">01</p>
+            <h2>{{ i18n.translate('student.history') }}</h2>
+            <div class="history-list">
+              @for (event of student.history; track event.id) {
+                <div>
+                  <time>{{ event.occurredAt }}</time
+                  ><strong>{{ event.summary }}</strong>
+                  <p>{{ event.details }}</p>
+                </div>
+              }
+            </div>
+          </article>
+        }
+        @default {
+          <article class="pending-panel">
+            <span aria-hidden="true">◇</span>
+            <p class="panel-index">{{ i18n.translate('student.sectionReady') }}</p>
+            <h2>{{ i18n.translate('student.modulePending') }}</h2>
+            <p>{{ i18n.translate('student.modulePendingText') }}</p>
+          </article>
+        }
+      }
+    </section>
+  }
+</main>

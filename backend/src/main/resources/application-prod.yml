@@ -1,0 +1,71 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT_INTERNAL:6379}
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+schoolz:
+  provisioning:
+    key: ${SCHOOLZ_PROVISIONING_KEY}
+    public-base-url: ${SCHOOLZ_PUBLIC_BASE_URL}
+  security:
+    allowed-origins: ${ALLOWED_ORIGINS}
+    jwt-issuer: ${AUTH_JWT_ISSUER}
+    jwt-secret: ${AUTH_JWT_SECRET}
+    token-pepper: ${AUTH_TOKEN_PEPPER}
+    secure-cookies: true
+  demo:
+    seed-enabled: false
+    expose-tokens: false
+    tenant-slug: ''
+    tenant-name: ''
+    admin-email: ''
+    admin-password: ''
+    teacher-email: ''
+    teacher-password: ''
+    student-email: ''
+    student-password: ''
+  payments:
+    sandbox:
+      webhook-secret: ''
+  storage:
+    provider: s3
+    s3:
+      endpoint: ${S3_ENDPOINT}
+      bucket: ${S3_BUCKET}
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
+      auto-create-bucket: false
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+  structured:
+    format:
+      console: ecs

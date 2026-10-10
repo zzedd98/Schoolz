@@ -1,0 +1,358 @@
+<main class="warning-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Vigilance scolaire</span>
+      <h1>Voir les signaux.<br /><em>Garder le jugement humain.</em></h1>
+      <p>
+        SchoolZ rapproche des faits déjà consignés pour aider l’équipe à agir au bon moment — sans
+        étiquette, sans profilage et sans diagnostic.
+      </p>
+    </div>
+    <div class="constellation" aria-hidden="true">
+      @for (signal of data()?.signalDefinitions ?? []; track signal.code; let index = $index) {
+        <i class="point point-{{ index }}"></i>
+      }
+      <span>faits<br />reliés</span>
+    </div>
+    <div class="hero-actions">
+      <label
+        ><span>Situation au</span><input type="date" [value]="asOf()" (change)="changeDate($event)"
+      /></label>
+      <button class="secondary" type="button" (click)="openRule()">+ Nouvelle règle</button>
+      <button class="primary" type="button" (click)="evaluate()" [disabled]="evaluating()">
+        {{ evaluating() ? 'Évaluation…' : 'Évaluer maintenant' }}
+      </button>
+    </div>
+  </section>
+
+  @if (error()) {
+    <div class="message error" role="alert">{{ error() }}</div>
+  }
+  @if (success()) {
+    <div class="message success" role="status">{{ success() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="state"><span></span>Lecture des signaux factuels…</div>
+  } @else if (data(); as dashboard) {
+    <section class="ethics-band">
+      <strong><span>✓</span>Frontière éthique active</strong>
+      <p>{{ dashboard.ethicalPolicy.purpose }}</p>
+      <p>{{ dashboard.ethicalPolicy.prohibition }}</p>
+    </section>
+
+    <section class="metrics" aria-label="Indicateurs d’alerte">
+      <div>
+        <span>Alertes actives</span><strong>{{ dashboard.statistics.activeAlerts }}</strong
+        ><small>à examiner</small>
+      </div>
+      <div>
+        <span>Priorité élevée</span><strong>{{ dashboard.statistics.highAlerts }}</strong
+        ><small>faits combinés</small>
+      </div>
+      <div>
+        <span>Prises en charge</span><strong>{{ dashboard.statistics.acknowledgedAlerts }}</strong
+        ><small>suivi en cours</small>
+      </div>
+      <div>
+        <span>Élèves observés</span><strong>{{ dashboard.statistics.studentsObserved }}</strong
+        ><small>sur ce snapshot</small>
+      </div>
+      <div>
+        <span>Règles actives</span><strong>{{ dashboard.statistics.activeRules }}</strong
+        ><small>configurables</small>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Rubriques du centre de vigilance">
+      <button type="button" [class.active]="tab() === 'alerts'" (click)="tab.set('alerts')">
+        File d’alertes <span>{{ activeAlerts().length }}</span>
+      </button>
+      <button type="button" [class.active]="tab() === 'students'" (click)="tab.set('students')">
+        Élèves & signaux <span>{{ dashboard.students.length }}</span>
+      </button>
+      <button type="button" [class.active]="tab() === 'rules'" (click)="tab.set('rules')">
+        Moteur de règles <span>{{ dashboard.rules.length }}</span>
+      </button>
+      <button type="button" [class.active]="tab() === 'history'" (click)="tab.set('history')">
+        Historique <span>{{ dashboard.evaluations.length }}</span>
+      </button>
+    </nav>
+
+    @if (tab() === 'alerts') {
+      <section class="alerts-view">
+        <header class="section-head">
+          <div>
+            <span>Prioriser avec contexte</span>
+            <h2>Une file de faits, pas une liste d’étiquettes</h2>
+          </div>
+          <p>Chaque alerte conserve les mesures, le seuil et la règle qui l’ont produite.</p>
+        </header>
+        <div class="alert-stream">
+          @for (alert of activeAlerts(); track alert.id; let index = $index) {
+            <article class="alert-line severity-{{ alert.severity.toLowerCase() }}">
+              <div class="line-index">{{ (index + 1).toString().padStart(2, '0') }}</div>
+              <div class="student-mark">{{ initials(alert.studentName) }}</div>
+              <div class="alert-main">
+                <div class="alert-meta">
+                  <span class="severity">{{ severity(alert.severity) }}</span
+                  ><span>{{ status(alert.status) }}</span
+                  ><small>{{ alert.studentIdentifier }}</small>
+                </div>
+                <h3>
+                  {{ alert.studentName }} <span>· {{ alert.ruleName }}</span>
+                </h3>
+                <p>{{ alert.factualSummary }}</p>
+                <div class="evidence-flow">
+                  @for (evidence of alert.evidence; track evidence.id) {
+                    <span [class.matched]="evidence.matched"
+                      ><b>{{ evidence.signalLabel }}</b
+                      >{{ evidence.actual }} {{ operator(evidence.operator) }}
+                      {{ evidence.threshold }}</span
+                    >
+                  }
+                </div>
+              </div>
+              <div class="alert-actions">
+                <small>Détectée {{ dateTime(alert.lastDetectedAt) }}</small>
+                @if (alert.status === 'OPEN') {
+                  <button type="button" (click)="openAction(alert, 'acknowledge')">
+                    Prendre en charge
+                  </button>
+                }
+                <button type="button" class="quiet" (click)="openAction(alert, 'resolve')">
+                  Résoudre
+                </button>
+              </div>
+            </article>
+          } @empty {
+            <div class="empty">
+              <strong>Aucune alerte active</strong>
+              <p>Les règles n’ont détecté aucune combinaison nécessitant un examen humain.</p>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    @if (tab() === 'students') {
+      <section class="students-view">
+        <header class="section-head">
+          <div>
+            <span>Mesures sources</span>
+            <h2>Les signaux observés, élève par élève</h2>
+          </div>
+          <p>Ces valeurs restent des faits administratifs et scolaires datés.</p>
+        </header>
+        <div class="student-stream">
+          @for (student of dashboard.students; track student.id) {
+            <article class="student-line">
+              <div class="student-identity">
+                <span>{{ initials(student.displayName) }}</span>
+                <div>
+                  <h3>{{ student.displayName }}</h3>
+                  <p>{{ student.identifier }} · {{ student.classroomName }}</p>
+                </div>
+              </div>
+              <div class="signals">
+                @for (signal of student.signals; track signal.signalType) {
+                  <div [title]="signal.factualDetail">
+                    <span>{{ signal.label }}</span
+                    ><strong>{{ signalValue(signal.value, signal.unit) }}</strong
+                    ><small>{{ signal.sourceModule }}</small>
+                  </div>
+                }
+              </div>
+              <div class="risk-count severity-{{ student.highestSeverity.toLowerCase() }}">
+                <strong>{{ student.activeAlertCount }}</strong
+                ><span>alerte(s)</span>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    @if (tab() === 'rules') {
+      <section class="rules-view">
+        <header class="section-head">
+          <div>
+            <span>Si les faits… alors alerter</span>
+            <h2>Des règles lisibles et configurables</h2>
+          </div>
+          <button type="button" (click)="openRule()">Composer une règle</button>
+        </header>
+        <div class="rule-stream">
+          @for (rule of dashboard.rules; track rule.id; let index = $index) {
+            <article class="rule-line">
+              <span class="rule-number">{{ (index + 1).toString().padStart(2, '0') }}</span>
+              <div class="rule-copy">
+                <div>
+                  <span class="severity severity-{{ rule.severity.toLowerCase() }}">{{
+                    severity(rule.severity)
+                  }}</span
+                  ><small>{{ rule.code }}</small>
+                </div>
+                <h3>{{ rule.name }}</h3>
+                <p>{{ rule.description }}</p>
+              </div>
+              <div class="logic-flow">
+                @for (condition of rule.conditions; track condition.id; let last = $last) {
+                  <span
+                    ><b>{{ condition.signalLabel }}</b
+                    >{{ operator(condition.operator) }} {{ condition.threshold }}</span
+                  >
+                  @if (!last) {
+                    <i>{{ rule.matchMode === 'ALL' ? 'ET' : 'OU' }}</i>
+                  }
+                }
+                <em>ALORS</em><strong>alerte {{ severity(rule.severity).toLowerCase() }}</strong>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    @if (tab() === 'history') {
+      <section class="history-view">
+        <header class="section-head">
+          <div>
+            <span>Traçabilité</span>
+            <h2>Chaque passage du moteur est conservé</h2>
+          </div>
+          <p>Une réévaluation rafraîchit l’alerte active au lieu de la dupliquer.</p>
+        </header>
+        <div class="timeline">
+          @for (run of dashboard.evaluations; track run.id) {
+            <article>
+              <span class="timeline-dot"></span><time>{{ dateTime(run.completedAt) }}</time>
+              <div>
+                <strong
+                  >{{ run.rulesEvaluated }} règles × {{ run.studentsEvaluated }} élèves</strong
+                >
+                <p>
+                  {{ run.alertsCreated }} créée(s), {{ run.alertsRefreshed }} rafraîchie(s) ·
+                  {{ run.status }}
+                </p>
+              </div>
+            </article>
+          }
+        </div>
+        <section class="resolved-archive">
+          <h3>Alertes clôturées</h3>
+          @for (alert of dashboard.alerts; track alert.id) {
+            @if (alert.status === 'RESOLVED' || alert.status === 'DISMISSED') {
+              <div>
+                <span>{{ status(alert.status) }}</span
+                ><strong>{{ alert.studentName }} · {{ alert.ruleName }}</strong>
+                <p>{{ alert.resolutionNote ?? alert.factualSummary }}</p>
+              </div>
+            }
+          }
+        </section>
+      </section>
+    }
+  }
+</main>
+
+@if (actionOpen() && selectedAlert(); as alert) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="actionOpen.set(false)"></button>
+  <aside class="drawer" aria-label="Suivi d’alerte">
+    <button class="close" type="button" (click)="actionOpen.set(false)">×</button>
+    <span class="drawer-eyebrow">{{
+      actionMode() === 'acknowledge' ? 'Prise en charge' : 'Résolution'
+    }}</span>
+    <h2>{{ alert.studentName }}</h2>
+    <p class="drawer-rule">{{ alert.ruleName }}</p>
+    <div class="drawer-facts">{{ alert.factualSummary }}</div>
+    <label
+      ><span>Note factuelle *</span
+      ><textarea
+        rows="5"
+        [(ngModel)]="actionNote"
+        placeholder="Action réalisée, élément reçu ou suivi planifié…"
+      ></textarea>
+    </label>
+    <p class="ethics-reminder">Ne consignez ni hypothèse médicale, ni diagnostic psychologique.</p>
+    <button class="submit" type="button" [disabled]="!actionNote.trim()" (click)="submitAction()">
+      {{
+        actionMode() === 'acknowledge'
+          ? 'Confirmer la prise en charge'
+          : 'Clôturer sans effacer l’historique'
+      }}
+    </button>
+  </aside>
+}
+
+@if (ruleOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="ruleOpen.set(false)"></button>
+  <aside class="drawer rule-drawer" aria-label="Nouvelle règle d’alerte">
+    <button class="close" type="button" (click)="ruleOpen.set(false)">×</button>
+    <span class="drawer-eyebrow">Moteur configurable</span>
+    <h2>Composer une règle factuelle</h2>
+    <div class="form-grid">
+      <label
+        ><span>Code *</span><input [(ngModel)]="ruleForm.code" placeholder="ABSENCE_15" /></label
+      ><label
+        ><span>Sévérité</span
+        ><select [(ngModel)]="ruleForm.severity">
+          <option value="LOW">À surveiller</option>
+          <option value="MEDIUM">Modérée</option>
+          <option value="HIGH">Élevée</option>
+          <option value="CRITICAL">Critique</option>
+        </select></label
+      >
+    </div>
+    <label
+      ><span>Nom *</span><input [(ngModel)]="ruleForm.name" placeholder="Nom lisible de la règle"
+    /></label>
+    <label
+      ><span>Description factuelle *</span
+      ><textarea rows="3" [(ngModel)]="ruleForm.description"></textarea>
+    </label>
+    <label
+      ><span>Correspondance</span
+      ><select [(ngModel)]="ruleForm.matchMode">
+        <option value="ALL">Toutes les conditions (ET)</option>
+        <option value="ANY">Au moins une condition (OU)</option>
+      </select></label
+    >
+    <div class="condition-editor">
+      <header>
+        <strong>Conditions</strong><button type="button" (click)="addCondition()">+ Ajouter</button>
+      </header>
+      @for (condition of ruleForm.conditions; track $index; let index = $index) {
+        <div>
+          <select [(ngModel)]="condition.signalType">
+            @for (signal of data()?.signalDefinitions ?? []; track signal.code) {
+              <option [value]="signal.code">{{ signal.label }}</option>
+            }</select
+          ><select [(ngModel)]="condition.operator">
+            <option value="GT">&gt;</option>
+            <option value="GTE">≥</option>
+            <option value="LT">&lt;</option>
+            <option value="LTE">≤</option>
+            <option value="EQ">=</option></select
+          ><input type="number" min="0" [(ngModel)]="condition.threshold" /><button
+            type="button"
+            (click)="removeCondition(index)"
+          >
+            ×
+          </button>
+        </div>
+      }
+    </div>
+    <p class="ethics-reminder">
+      Les termes de diagnostic psychologique ou médical sont refusés par le serveur.
+    </p>
+    <button
+      class="submit"
+      type="button"
+      [disabled]="!ruleForm.code || !ruleForm.name || !ruleForm.description"
+      (click)="createRule()"
+    >
+      Créer la règle
+    </button>
+  </aside>
+}

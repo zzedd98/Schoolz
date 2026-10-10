@@ -1,0 +1,193 @@
+<main class="portal">
+  <header class="topbar">
+    <a class="brand" routerLink="/family"><span>SZ</span> SchoolZ</a>
+    <nav>
+      <a routerLink="/childcare">Daily Report</a
+      ><a routerLink="/enrollment">{{ text('Inscription', 'التسجيل') }}</a
+      ><button type="button" (click)="toggleLocale()">
+        {{ i18n.locale() === 'ar-MA' ? 'FR' : 'AR' }}
+      </button>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow">
+        {{ text('Espace famille · Vie scolaire', 'فضاء الأسرة · الحياة المدرسية') }}
+      </p>
+      <h1>{{ text('Assiduité & justificatifs', 'المواظبة والتبريرات') }}</h1>
+      <p>
+        {{
+          text(
+            'Chaque absence signalée, suivie et justifiée dans un parcours transparent.',
+            'كل غياب يتم إشعاره وتتبع تبريره في مسار واضح.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="period">
+      <label
+        >{{ text('Du', 'من')
+        }}<input type="date" [value]="from()" (change)="selectPeriod('from', $event)" /></label
+      ><label
+        >{{ text('Au', 'إلى')
+        }}<input type="date" [value]="to()" (change)="selectPeriod('to', $event)"
+      /></label>
+    </div>
+  </section>
+
+  @if (error()) {
+    <section class="notice error">
+      <p>{{ error() }}</p>
+      <a routerLink="/family">{{ text('Ouvrir le portail parent', 'فتح بوابة الوالدين') }}</a>
+    </section>
+  }
+  @if (message()) {
+    <p class="success" role="status">{{ message() }}</p>
+  }
+
+  @if (dashboard(); as data) {
+    <section class="metrics">
+      <article>
+        <span>{{ text('Absences', 'الغيابات') }}</span
+        ><strong>{{ data.absences.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Justifiées', 'مبررة') }}</span
+        ><strong>{{ excusedCount() }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Notifications', 'الإشعارات') }}</span
+        ><strong>{{ unreadCount() }}</strong>
+      </article>
+    </section>
+    <section class="content-grid">
+      <div class="absence-panel">
+        <header>
+          <div>
+            <p class="eyebrow">{{ text('Suivi', 'التتبع') }}</p>
+            <h2>{{ text('Absences de mes enfants', 'غيابات أطفالي') }}</h2>
+          </div>
+        </header>
+        @for (absence of data.absences; track absence.absenceId) {
+          <article class="absence-card" [attr.data-status]="absence.resolutionStatus">
+            <time
+              ><strong>{{ absence.date.slice(8, 10) }}</strong
+              ><span>{{ absence.date.slice(5, 7) }}</span></time
+            >
+            <div class="absence-main">
+              <p>{{ absence.studentName }} · {{ absence.classroomName }}</p>
+              <h3>{{ absence.subjectName }}</h3>
+              @if (absence.reasonName) {
+                <small>{{ absence.reasonName }}</small>
+              }
+              @if (absence.parentStatement) {
+                <blockquote>{{ absence.parentStatement }}</blockquote>
+              }
+            </div>
+            <div class="absence-action">
+              <b>{{ status(absence) }}</b>
+              @if (
+                absence.resolutionStatus === 'UNEXCUSED' || absence.resolutionStatus === 'REJECTED'
+              ) {
+                <button mat-flat-button type="button" (click)="openJustification(absence)">
+                  {{
+                    absence.resolutionStatus === 'REJECTED'
+                      ? text('Corriger', 'تصحيح')
+                      : text('Justifier', 'تبرير')
+                  }}
+                </button>
+              }
+            </div>
+          </article>
+        } @empty {
+          <p class="empty">
+            ✓ {{ text('Aucune absence sur cette période.', 'لا توجد غيابات في هذه الفترة.') }}
+          </p>
+        }
+      </div>
+
+      <aside class="notifications">
+        <header>
+          <p class="eyebrow">{{ text('Centre de notifications', 'مركز الإشعارات') }}</p>
+          <h2>{{ text('Dernières alertes', 'آخر التنبيهات') }}</h2>
+        </header>
+        @for (notification of data.notifications; track notification.id) {
+          <button
+            type="button"
+            [class.unread]="notification.status === 'UNREAD'"
+            (click)="read(notification)"
+          >
+            <i></i
+            ><span
+              ><strong>{{ notification.title }}</strong
+              ><small>{{ notification.studentName }} · {{ notification.message }}</small></span
+            >
+          </button>
+        } @empty {
+          <p class="empty">{{ text('Aucune notification.', 'لا توجد إشعارات.') }}</p>
+        }
+      </aside>
+    </section>
+  }
+</main>
+
+@if (selectedAbsence(); as absence) {
+  <button
+    class="backdrop"
+    type="button"
+    (click)="selectedAbsence.set(null)"
+    [attr.aria-label]="text('Fermer', 'إغلاق')"
+  ></button>
+  <section class="editor" role="dialog" aria-modal="true">
+    <header>
+      <div>
+        <p>{{ absence.studentName }} · {{ absence.date }}</p>
+        <h2>{{ text("Justifier l'absence", 'تبرير الغياب') }}</h2>
+      </div>
+      <button type="button" (click)="selectedAbsence.set(null)">×</button>
+    </header>
+    <label
+      >{{ text('Motif', 'السبب')
+      }}<select [(ngModel)]="reasonId">
+        @for (reason of dashboard()?.absenceReasons ?? []; track reason.id) {
+          <option [value]="reason.id">
+            {{ i18n.locale() === 'ar-MA' ? reason.nameAr : reason.nameFr
+            }}{{ reason.requiresDocument ? ' *' : '' }}
+          </option>
+        }
+      </select></label
+    >
+    <label
+      >{{ text('Explication', 'التوضيح')
+      }}<textarea
+        rows="5"
+        [(ngModel)]="statement"
+        [placeholder]="text('Décrivez le motif en quelques mots…', 'صف السبب في بضع كلمات…')"
+      ></textarea
+      ><small
+        >{{ statement.trim().length }}/10 {{ text('caractères minimum', 'أحرف على الأقل') }}</small
+      ></label
+    >
+    <label
+      >{{ text('Référence de pièce (facultatif)', 'مرجع الوثيقة (اختياري)')
+      }}<input [(ngModel)]="evidenceReference" placeholder="document/justificatif.pdf"
+    /></label>
+    <p class="privacy">
+      {{
+        text(
+          'La justification sera vérifiée par l’administration. Les données restent limitées à votre établissement.',
+          'ستراجع الإدارة التبرير وتبقى البيانات محصورة في مؤسستكم.'
+        )
+      }}
+    </p>
+    <button
+      mat-flat-button
+      type="button"
+      [disabled]="busy() || !reasonId || statement.trim().length < 10"
+      (click)="submitJustification()"
+    >
+      {{ text('Envoyer la justification', 'إرسال التبرير') }}
+    </button>
+  </section>
+}

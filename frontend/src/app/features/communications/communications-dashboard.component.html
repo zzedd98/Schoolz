@@ -1,0 +1,314 @@
+<main class="communications-page">
+  @if (dashboard(); as data) {
+    <header class="hero">
+      <div>
+        <p>{{ text('Communications', 'التواصل') }}</p>
+        <h1>
+          {{ text('Le bon message, au bon périmètre.', 'الرسالة المناسبة، للنطاق المناسب.') }}
+        </h1>
+        <span>
+          {{
+            text(
+              'Annonces, conversations et notifications restent distinctes et traçables.',
+              'تظل الإعلانات والمحادثات والإشعارات منفصلة وقابلة للتتبع.'
+            )
+          }}
+        </span>
+      </div>
+      <div class="channel-strip" aria-label="Canaux disponibles">
+        <b>IN-APP</b><b>PUSH</b><b>EMAIL</b><b>SMS</b><b>WHATSAPP · ADAPTER</b>
+      </div>
+    </header>
+
+    @if (notice()) {
+      <p class="feedback success">{{ notice() }}</p>
+    }
+    @if (error()) {
+      <p class="feedback error">{{ error() }}</p>
+    }
+
+    <section class="metrics" aria-label="Synthèse communications">
+      <article>
+        <span>ANNOUNCEMENT</span><strong>{{ data.announcements.length }}</strong
+        ><small>{{ text('diffusions ciblées', 'إعلانات موجهة') }}</small>
+      </article>
+      <article>
+        <span>DIRECT_MESSAGE</span><strong>{{ data.conversations.length }}</strong
+        ><small>{{ text('fils famille', 'محادثات أسرية') }}</small>
+      </article>
+      <article>
+        <span>AUTOMATED_NOTIFICATION</span><strong>{{ data.templates.length }}</strong
+        ><small>{{ text('variantes de modèles', 'صيغ النماذج') }}</small>
+      </article>
+    </section>
+
+    <section class="composer-grid">
+      <form class="composer announcement" (ngSubmit)="publishAnnouncement()">
+        <div class="section-title">
+          <span>01</span>
+          <div>
+            <small>ANNOUNCEMENT</small>
+            <h2>{{ text('Publier une annonce', 'نشر إعلان') }}</h2>
+          </div>
+        </div>
+        <label>
+          {{ text('Audience', 'الجمهور') }}
+          <select name="announcementScope" [(ngModel)]="announcementScope">
+            @if (!data.teacherView) {
+              <option value="SCHOOL">{{ text('École entière', 'المؤسسة كاملة') }}</option>
+              <option value="CAMPUS">{{ text('Un campus', 'فرع واحد') }}</option>
+            }
+            <option value="CLASS">{{ text('Une classe', 'قسم واحد') }}</option>
+          </select>
+        </label>
+        @if (announcementScope === 'CAMPUS') {
+          <label>
+            Campus
+            <select name="announcementCampus" [(ngModel)]="announcementCampusId">
+              @for (campus of data.campuses; track campus.id) {
+                <option [value]="campus.id">{{ campus.code }} · {{ campus.name }}</option>
+              }
+            </select>
+          </label>
+        }
+        @if (announcementScope === 'CLASS') {
+          <label>
+            {{ text('Classe', 'القسم') }}
+            <select name="announcementClass" [(ngModel)]="announcementClassroomId">
+              @for (classroom of data.classrooms; track classroom.id) {
+                <option [value]="classroom.id">
+                  {{ classroom.campusName }} · {{ classroom.name }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+        <label>
+          {{ text('Titre', 'العنوان') }}
+          <input name="announcementTitle" maxlength="220" [(ngModel)]="announcementTitle" />
+        </label>
+        <label>
+          {{ text('Message', 'الرسالة') }}
+          <textarea
+            name="announcementBody"
+            rows="4"
+            maxlength="10000"
+            [(ngModel)]="announcementBody"
+          ></textarea>
+        </label>
+        <button type="submit" [disabled]="busy()">
+          {{ text('Publier et distribuer', 'نشر وتوزيع') }}
+        </button>
+      </form>
+
+      <form class="composer direct" (ngSubmit)="startConversation()">
+        <div class="section-title">
+          <span>02</span>
+          <div>
+            <small>DIRECT_MESSAGE</small>
+            <h2>{{ text('Écrire à une famille', 'مراسلة أسرة') }}</h2>
+          </div>
+        </div>
+        <label>
+          {{ text('Famille · élève', 'الأسرة · التلميذ') }}
+          <select name="conversationParent" [(ngModel)]="conversationParentKey">
+            @for (parent of data.parents; track parentKey(parent)) {
+              <option [value]="parentKey(parent)">
+                {{ parent.displayName }} · {{ parent.studentName }}
+              </option>
+            }
+          </select>
+        </label>
+        <label>
+          {{ text('Objet', 'الموضوع') }}
+          <input name="conversationSubject" maxlength="220" [(ngModel)]="conversationSubject" />
+        </label>
+        <label>
+          {{ text('Premier message', 'الرسالة الأولى') }}
+          <textarea
+            name="conversationBody"
+            rows="4"
+            maxlength="4000"
+            [(ngModel)]="conversationBody"
+          ></textarea>
+        </label>
+        <button type="submit" [disabled]="busy()">
+          {{ text('Ouvrir la conversation', 'فتح المحادثة') }}
+        </button>
+      </form>
+
+      @if (!data.teacherView) {
+        <form class="composer automated" (ngSubmit)="sendAutomated()">
+          <div class="section-title">
+            <span>03</span>
+            <div>
+              <small>AUTOMATED_NOTIFICATION</small>
+              <h2>{{ text('Préparer depuis un modèle', 'إعداد انطلاقاً من نموذج') }}</h2>
+            </div>
+          </div>
+          <label>
+            {{ text('Modèle', 'النموذج') }}
+            <select name="automatedTemplate" [(ngModel)]="automatedTemplateKey">
+              @for (templateKey of uniqueTemplateKeys(); track templateKey) {
+                <option [value]="templateKey">{{ templateKey }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            {{ text('Famille · élève', 'الأسرة · التلميذ') }}
+            <select name="automatedParent" [(ngModel)]="automatedParentKey">
+              @for (parent of data.parents; track parentKey(parent)) {
+                <option [value]="parentKey(parent)">
+                  {{ parent.displayName }} · {{ parent.studentName }}
+                </option>
+              }
+            </select>
+          </label>
+          <label>
+            {{ text('Variable « student »', 'متغير « student »') }}
+            <input name="automatedStudent" [(ngModel)]="automatedStudentName" />
+          </label>
+          <button type="submit" [disabled]="busy()">
+            {{ text('Préparer la notification', 'إعداد الإشعار') }}
+          </button>
+        </form>
+      }
+    </section>
+
+    <section class="content-grid">
+      <div class="feed-card announcements-feed">
+        <div class="section-heading">
+          <div>
+            <small>DIFFUSIONS</small>
+            <h2>{{ text('Annonces publiées', 'الإعلانات المنشورة') }}</h2>
+          </div>
+          <b>{{ data.announcements.length }}</b>
+        </div>
+        @for (announcement of data.announcements; track announcement.id) {
+          <article>
+            <div class="article-meta">
+              <span>{{ audienceLabel(announcement.audienceScope) }}</span>
+              <time>{{ announcement.publishedAt | date: 'dd/MM · HH:mm' }}</time>
+            </div>
+            <h3>{{ announcement.title }}</h3>
+            <p>{{ announcement.body }}</p>
+            <small>
+              {{ announcement.recipientCount }} {{ text('famille(s)', 'أسرة') }} ·
+              {{ announcement.createdBy }}
+            </small>
+          </article>
+        } @empty {
+          <p class="empty">{{ text('Aucune annonce.', 'لا توجد إعلانات.') }}</p>
+        }
+      </div>
+
+      <div class="feed-card conversation-list">
+        <div class="section-heading">
+          <div>
+            <small>MESSAGERIE</small>
+            <h2>{{ text('Conversations', 'المحادثات') }}</h2>
+          </div>
+          <b>{{ data.conversations.length }}</b>
+        </div>
+        @for (conversation of data.conversations; track conversation.id) {
+          <button
+            type="button"
+            [class.active]="selectedConversationId() === conversation.id"
+            (click)="chooseConversation(conversation.id)"
+          >
+            <span>{{ conversation.parentName.slice(0, 1) }}</span>
+            <div>
+              <strong>{{ conversation.subject }}</strong>
+              <small>{{ conversation.parentName }} · {{ conversation.studentName }}</small>
+            </div>
+            <time>{{ conversation.lastMessageAt | date: 'dd/MM' }}</time>
+          </button>
+        }
+      </div>
+
+      <div class="feed-card thread">
+        @if (selectedConversation(); as conversation) {
+          <div class="section-heading">
+            <div>
+              <small>DIRECT_MESSAGE</small>
+              <h2>{{ conversation.subject }}</h2>
+            </div>
+            <b>{{ conversation.status }}</b>
+          </div>
+          <p class="thread-context">
+            {{ conversation.parentName }} ·
+            {{ conversation.studentName || text('Famille', 'الأسرة') }}
+            @if (conversation.classroomName) {
+              · {{ conversation.classroomName }}
+            }
+          </p>
+          <div class="messages">
+            @for (message of conversation.messages; track message.id) {
+              <article [class.parent]="message.senderKind === 'PARENT'">
+                <small>{{ message.senderName }} · {{ message.sentAt | date: 'dd/MM HH:mm' }}</small>
+                <p>{{ message.body }}</p>
+              </article>
+            }
+          </div>
+          <form class="reply" (ngSubmit)="reply()">
+            <textarea
+              name="replyBody"
+              rows="2"
+              maxlength="4000"
+              [(ngModel)]="replyBody"
+              [placeholder]="text('Répondre…', 'الرد…')"
+            ></textarea>
+            <button type="submit" [disabled]="busy()">{{ text('Envoyer', 'إرسال') }}</button>
+          </form>
+        } @else {
+          <p class="empty">{{ text('Sélectionnez une conversation.', 'اختاروا محادثة.') }}</p>
+        }
+      </div>
+    </section>
+
+    <section class="notification-card">
+      <div class="section-heading">
+        <div>
+          <small>NOTIFICATION DELIVERY</small>
+          <h2>{{ text('Livraisons et réponses famille', 'التسليم وردود الأسر') }}</h2>
+        </div>
+        <b>{{ data.notifications.length }}</b>
+      </div>
+      <p class="adapter-note">
+        {{
+          text(
+            'IN_APP est livré localement. PUSH, EMAIL, SMS et WHATSAPP restent en PREVIEW via adaptateurs.',
+            'يتم التسليم داخل التطبيق. أما PUSH وEMAIL وSMS وWHATSAPP فتبقى في وضع المعاينة عبر الموصلات.'
+          )
+        }}
+      </p>
+      @for (notification of data.notifications; track notification.id) {
+        <article [class.unread]="!notification.readAt">
+          <div>
+            <span>{{ notification.category }}</span>
+            <strong>{{ notification.title }}</strong>
+            <p>{{ notification.body }}</p>
+          </div>
+          <div class="deliveries">
+            @for (delivery of notification.deliveries; track delivery.channel) {
+              <span [class]="delivery.status.toLowerCase()">
+                {{ delivery.channel }} · {{ delivery.status }}
+              </span>
+            }
+          </div>
+          @if (!notification.readAt) {
+            <button type="button" (click)="readNotification(notification.id)">
+              {{ text('Marquer lu', 'تعليم كمقروء') }}
+            </button>
+          }
+        </article>
+      } @empty {
+        <p class="empty">{{ text('Aucune réponse non lue.', 'لا توجد ردود غير مقروءة.') }}</p>
+      }
+    </section>
+  } @else if (busy()) {
+    <p class="loading">{{ text('Chargement des communications…', 'جار تحميل التواصل…') }}</p>
+  } @else {
+    <p class="feedback error">{{ error() }}</p>
+  }
+</main>

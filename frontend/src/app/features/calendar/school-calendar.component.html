@@ -1,0 +1,155 @@
+<main class="calendar-page">
+  <section class="hero">
+    <div>
+      <span>Calendrier établissement</span>
+      <h1>Le rythme de l’école,<br /><em>visible d’un regard.</em></h1>
+      <p>
+        Vacances, examens, réunions, sorties et rencontres familles partagent enfin la même ligne du
+        temps.
+      </p>
+      @if (auth.hasPermission('calendar.manage')) {
+        <button type="button" (click)="openCreator()">+ Ajouter un événement</button>
+      }
+    </div>
+    <div class="month">
+      <small>Période affichée</small><strong>{{ rangeStart | date: 'MMMM' }}</strong
+      ><span>{{ rangeStart | date: 'yyyy' }}</span>
+      <nav>
+        <button type="button" (click)="shift(-1)">←</button
+        ><button type="button" (click)="shift(1)">→</button>
+      </nav>
+    </div>
+  </section>
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="message success" role="status">{{ message() }}</p>
+  }
+  @if (data(); as calendar) {
+    <section class="filter-river">
+      <button type="button" [class.active]="!type" (click)="filterType('')">
+        <b>∞</b><span>Tout</span><small>{{ calendar.events.length }}</small>
+      </button>
+      @for (eventType of calendar.eventTypes; track eventType) {
+        <button type="button" [class.active]="type === eventType" (click)="filterType(eventType)">
+          <b>{{ icons[eventType] }}</b
+          ><span>{{ labels[eventType] }}</span
+          ><small>{{ calendar.counts[eventType] ?? 0 }}</small>
+        </button>
+      }
+    </section>
+    <section class="campus-filter">
+      <span>Campus</span
+      ><select [ngModel]="campusId" (ngModelChange)="filterCampus($event)">
+        <option value="">Tous les campus</option>
+        @for (campus of calendar.campuses; track campus.id) {
+          <option [value]="campus.id">{{ campus.name }}</option>
+        }
+      </select>
+      <p>Synchronisation externe préparée par adapter · données locales prioritaires</p>
+    </section>
+  }
+  <section class="agenda">
+    <header>
+      <span>Prochainement</span>
+      <h2>Les rendez-vous qui structurent la vie scolaire</h2>
+    </header>
+    @if (loading()) {
+      <div class="loading"><i></i>Ouverture de l’agenda…</div>
+    } @else if (data(); as calendar) {
+      @for (event of calendar.events; track event.id; let index = $index) {
+        <article [class]="event.eventType.toLowerCase()">
+          <span class="number">{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</span
+          ><span class="date"
+            ><b>{{ event.startsAt | date: 'dd' }}</b
+            ><small>{{ event.startsAt | date: 'MMM' }}</small></span
+          ><span class="line"><i></i></span>
+          <div class="copy">
+            <div class="meta">
+              <span>{{ labels[event.eventType] }}</span
+              ><b>{{
+                event.audienceScope === 'SCHOOL' ? 'Toute l’école' : (event.campusName ?? 'Classe')
+              }}</b
+              ><small>{{ event.syncStatus === 'LOCAL_ONLY' ? 'Local' : 'Synchronisé' }}</small>
+            </div>
+            <h3>{{ event.title }}</h3>
+            <p>{{ event.description }}</p>
+            <div class="details">
+              <span>{{
+                event.allDay
+                  ? 'Toute la journée'
+                  : (event.startsAt | date: 'HH:mm') + ' — ' + (event.endsAt | date: 'HH:mm')
+              }}</span>
+              @if (event.location) {
+                <span>⌖ {{ event.location }}</span>
+              }
+            </div>
+          </div>
+          @if (auth.hasPermission('calendar.manage')) {
+            <button class="cancel" type="button" [disabled]="busy()" (click)="cancel(event)">
+              Annuler
+            </button>
+          }
+        </article>
+      } @empty {
+        <div class="empty">
+          <b>☀</b>
+          <h3>La période est libre.</h3>
+          <p>Essayez un autre filtre ou avancez d’un mois.</p>
+        </div>
+      }
+    }
+  </section>
+</main>
+@if (drawerOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)"></button>
+  <aside class="drawer" aria-label="Nouvel événement">
+    <button class="close" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)">
+      ×</button
+    ><span>Nouvelle date</span>
+    <h2>Inscrire un temps fort.</h2>
+    <label><span>Titre *</span><input [(ngModel)]="form.title" /></label
+    ><label
+      ><span>Description</span><textarea rows="3" [(ngModel)]="form.description"></textarea>
+    </label>
+    <div class="two">
+      <label
+        ><span>Type</span
+        ><select [(ngModel)]="form.eventType">
+          @for (eventType of data()?.eventTypes ?? []; track eventType) {
+            <option [value]="eventType">{{ labels[eventType] }}</option>
+          }
+        </select></label
+      ><label
+        ><span>Audience</span
+        ><select [(ngModel)]="form.audienceScope" (ngModelChange)="scopeChanged()">
+          <option value="SCHOOL">Toute l’école</option>
+          <option value="CAMPUS">Un campus</option>
+        </select></label
+      >
+    </div>
+    @if (form.audienceScope === 'CAMPUS') {
+      <label
+        ><span>Campus</span
+        ><select [(ngModel)]="form.campusId">
+          @for (campus of data()?.campuses ?? []; track campus.id) {
+            <option [value]="campus.id">{{ campus.name }}</option>
+          }
+        </select></label
+      >
+    }
+    <div class="two">
+      <label><span>Début</span><input type="datetime-local" [(ngModel)]="form.startsAt" /></label
+      ><label><span>Fin</span><input type="datetime-local" [(ngModel)]="form.endsAt" /></label>
+    </div>
+    <label><span>Lieu</span><input [(ngModel)]="form.location" /></label
+    ><label class="check"
+      ><input type="checkbox" [(ngModel)]="form.allDay" /><span
+        >Événement sur toute la journée</span
+      ></label
+    ><button class="create" type="button" [disabled]="busy()" (click)="create()">
+      {{ busy() ? 'Création…' : 'Ajouter au calendrier' }}
+    </button>
+  </aside>
+}

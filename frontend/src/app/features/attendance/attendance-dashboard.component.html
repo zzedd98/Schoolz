@@ -1,0 +1,399 @@
+<main class="attendance-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ text('Vie scolaire', 'الحياة المدرسية') }}</p>
+      <h1>{{ text('Appel & assiduité', 'الحضور والمواظبة') }}</h1>
+      <p>
+        {{
+          text(
+            'Présent par défaut. Un geste pour signaler une exception.',
+            'الجميع حاضر افتراضياً. لمسة واحدة لتسجيل الاستثناء.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="heading-actions">
+      <label
+        >{{ text('Journée', 'اليوم')
+        }}<input type="date" [value]="date()" (change)="selectDate($event)"
+      /></label>
+      <button mat-flat-button type="button" (click)="openCreate()">
+        + {{ text('Nouvel appel', 'حصة جديدة') }}
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="alert error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="alert success" role="status">{{ message() }}</p>
+  }
+
+  @if (statistics(); as stats) {
+    <section class="metrics">
+      <article>
+        <span>{{ text('Présences', 'الحضور') }}</span
+        ><strong>{{ stats.presentCount }}</strong
+        ><small>{{ stats.totalRecords }} {{ text('appels', 'تسجيلاً') }}</small>
+      </article>
+      <article class="absent">
+        <span>{{ text('Absences', 'الغيابات') }}</span
+        ><strong>{{ stats.absentCount }}</strong
+        ><small>{{ stats.absenceRate }}%</small>
+      </article>
+      <article class="late">
+        <span>{{ text('Retards', 'التأخرات') }}</span
+        ><strong>{{ stats.lateCount }}</strong
+        ><small>{{ stats.earlyDepartureCount }} {{ text('départs', 'مغادرات') }}</small>
+      </article>
+      <article class="unexcused">
+        <span>{{ text('Non justifiées', 'غير مبررة') }}</span
+        ><strong>{{ stats.unexcusedCount }}</strong
+        ><small>{{ text('30 derniers jours', 'آخر 30 يوماً') }}</small>
+      </article>
+    </section>
+  }
+
+  <section class="workspace-grid">
+    <div class="sessions-panel">
+      <header>
+        <div>
+          <p class="eyebrow">{{ text('Cours du jour', 'حصص اليوم') }}</p>
+          <h2>{{ sessions().length }} {{ text('sessions', 'حصص') }}</h2>
+        </div>
+      </header>
+      <div class="session-list">
+        @for (session of sessions(); track session.id) {
+          <button
+            type="button"
+            [class.active]="activeSession()?.id === session.id"
+            (click)="open(session.id)"
+          >
+            <time>{{ session.startsAt.slice(0, 5) }}</time>
+            <span
+              ><strong>{{ session.subjectName }}</strong
+              ><small>{{ session.classroomName }} · {{ session.teacherName }}</small></span
+            >
+            <b [attr.data-status]="session.status">{{
+              session.status === 'OPEN' ? text('À faire', 'مفتوحة') : text('Clôturé', 'مغلقة')
+            }}</b>
+            <i>{{ session.presentCount }}/{{ session.totalCount }}</i>
+          </button>
+        } @empty {
+          <p class="empty">
+            {{ text('Aucun cours planifié ce jour.', 'لا توجد حصص مقررة اليوم.') }}
+          </p>
+        }
+      </div>
+    </div>
+
+    @if (auth.hasPermission('attendance.manage')) {
+      <div class="review-panel">
+        <header>
+          <div>
+            <p class="eyebrow">{{ text('À valider', 'للمراجعة') }}</p>
+            <h2>{{ text('Justifications parent', 'تبريرات الوالدين') }}</h2>
+          </div>
+          <span>{{ justifications().length }}</span>
+        </header>
+        @for (item of justifications(); track item.id) {
+          <article class="justification-card">
+            <div>
+              <strong>{{ item.studentName }}</strong
+              ><small
+                >{{ item.absenceDate }} · {{ item.subjectName }} · {{ item.classroomName }}</small
+              >
+            </div>
+            <b>{{ item.reasonName }}</b>
+            <blockquote>{{ item.parentStatement }}</blockquote>
+            <input
+              [(ngModel)]="reviewNotes"
+              [placeholder]="text('Note de décision', 'ملاحظة القرار')"
+            />
+            <footer>
+              <button
+                type="button"
+                class="reject"
+                [disabled]="busy()"
+                (click)="review(item, 'REJECTED')"
+              >
+                {{ text('Refuser', 'رفض') }}</button
+              ><button
+                type="button"
+                class="approve"
+                [disabled]="busy()"
+                (click)="review(item, 'APPROVED')"
+              >
+                ✓ {{ text('Accepter', 'قبول') }}
+              </button>
+            </footer>
+          </article>
+        } @empty {
+          <p class="empty">
+            ✓ {{ text('Aucune justification en attente.', 'لا توجد تبريرات معلقة.') }}
+          </p>
+        }
+      </div>
+    }
+  </section>
+
+  @if (statistics()?.trend?.length) {
+    <section class="trend-panel">
+      <header>
+        <div>
+          <p class="eyebrow">{{ text('Évolution', 'التطور') }}</p>
+          <h2>{{ text('Absences & retards', 'الغيابات والتأخرات') }}</h2>
+        </div>
+      </header>
+      <div class="trend-bars">
+        @for (point of statistics()?.trend ?? []; track point.date) {
+          <div>
+            <span>{{ point.date.slice(5) }}</span
+            ><i
+              [style.height.%]="point.totalCount ? (point.absentCount / point.totalCount) * 100 : 0"
+              class="absence"
+            ></i
+            ><i
+              [style.height.%]="point.totalCount ? (point.lateCount / point.totalCount) * 100 : 0"
+              class="lateness"
+            ></i
+            ><small>{{ point.absentCount }}A · {{ point.lateCount }}R</small>
+          </div>
+        }
+      </div>
+    </section>
+  }
+</main>
+
+@if (activeSession(); as session) {
+  <button
+    class="sheet-backdrop"
+    type="button"
+    (click)="closeCall()"
+    [attr.aria-label]="text('Fermer', 'إغلاق')"
+  ></button>
+  <section class="call-sheet" role="dialog" aria-modal="true" aria-labelledby="call-title">
+    <header class="call-head">
+      <div>
+        <p>
+          {{ session.classroomName }} · {{ session.startsAt.slice(0, 5) }}—{{
+            session.endsAt.slice(0, 5)
+          }}
+        </p>
+        <h2 id="call-title">{{ session.subjectName }}</h2>
+        <small>{{ session.teacherName }}</small>
+      </div>
+      <button type="button" (click)="closeCall()" aria-label="Fermer">×</button>
+    </header>
+    <section class="call-counts">
+      <span class="present">{{ count('PRESENT') }} P</span
+      ><span class="absent">{{ count('ABSENT') }} A</span
+      ><span class="late">{{ count('LATE') }} R</span
+      ><span class="early">{{ count('EARLY_DEPARTURE') }} D</span>
+      @if (session.status === 'SUBMITTED') {
+        <b>✓ {{ text('Appel clôturé', 'الحضور مغلق') }}</b>
+      }
+    </section>
+    <div class="roster">
+      @for (record of session.records; track record.id) {
+        <article class="student-row" [attr.data-status]="status(record.id)">
+          <div class="student">
+            <span>{{ record.studentName.slice(0, 1) }}</span>
+            <div>
+              <strong>{{ record.studentName }}</strong
+              ><small>{{ statusLabel(status(record.id)) }}</small>
+            </div>
+          </div>
+          <div class="status-buttons" role="group" [attr.aria-label]="record.studentName">
+            <button
+              type="button"
+              [class.selected]="status(record.id) === 'PRESENT'"
+              [disabled]="session.status !== 'OPEN'"
+              (click)="setStatus(record.id, 'PRESENT')"
+            >
+              P
+            </button>
+            <button
+              type="button"
+              [class.selected]="status(record.id) === 'ABSENT'"
+              [disabled]="session.status !== 'OPEN'"
+              (click)="setStatus(record.id, 'ABSENT')"
+            >
+              A
+            </button>
+            <button
+              type="button"
+              [class.selected]="status(record.id) === 'LATE'"
+              [disabled]="session.status !== 'OPEN'"
+              (click)="setStatus(record.id, 'LATE')"
+            >
+              R
+            </button>
+            <button
+              type="button"
+              [class.selected]="status(record.id) === 'EARLY_DEPARTURE'"
+              [disabled]="session.status !== 'OPEN'"
+              (click)="setStatus(record.id, 'EARLY_DEPARTURE')"
+            >
+              D
+            </button>
+          </div>
+          @if (status(record.id) === 'LATE') {
+            <label class="exception-field"
+              >{{ text('Arrivée', 'الوصول')
+              }}<input
+                type="time"
+                [value]="drafts()[record.id].arrivedAt"
+                [disabled]="session.status !== 'OPEN'"
+                (input)="updateDraft(record.id, 'arrivedAt', $event)"
+            /></label>
+          }
+          @if (status(record.id) === 'EARLY_DEPARTURE') {
+            <div class="exception-fields">
+              <input
+                type="time"
+                [value]="drafts()[record.id].leftAt"
+                [disabled]="session.status !== 'OPEN'"
+                (input)="updateDraft(record.id, 'leftAt', $event)"
+              /><input
+                [value]="drafts()[record.id].pickupPersonName"
+                [disabled]="session.status !== 'OPEN'"
+                [placeholder]="text('Personne de récupération', 'الشخص المستلم')"
+                (input)="updateDraft(record.id, 'pickupPersonName', $event)"
+              /><input
+                [value]="drafts()[record.id].departureReason"
+                [disabled]="session.status !== 'OPEN'"
+                [placeholder]="text('Motif', 'السبب')"
+                (input)="updateDraft(record.id, 'departureReason', $event)"
+              />
+            </div>
+          }
+          <div class="school-life-actions">
+            <button type="button" (click)="openStudentEditor(record, 'OBSERVATION')">
+              + {{ text('Observation', 'ملاحظة') }}</button
+            ><button type="button" class="incident" (click)="openStudentEditor(record, 'INCIDENT')">
+              + {{ text('Incident', 'حادث') }}
+            </button>
+          </div>
+        </article>
+      }
+    </div>
+    @if (session.status === 'OPEN') {
+      <footer class="call-footer">
+        <button mat-button type="button" [disabled]="busy()" (click)="saveCall()">
+          {{ text('Enregistrer', 'حفظ') }}</button
+        ><button mat-flat-button type="button" [disabled]="busy()" (click)="submitCall()">
+          {{ text('Clôturer & notifier', 'إغلاق وإشعار') }}
+        </button>
+      </footer>
+    }
+  </section>
+}
+
+@if (createOpen()) {
+  <button
+    class="sheet-backdrop"
+    type="button"
+    (click)="createOpen.set(false)"
+    [attr.aria-label]="text('Fermer', 'إغلاق')"
+  ></button>
+  <section class="editor" role="dialog" aria-modal="true">
+    <header>
+      <div>
+        <p class="eyebrow">{{ text('Nouvel appel', 'حضور جديد') }}</p>
+        <h2>{{ text('Sélectionner le cours', 'اختر الحصة') }}</h2>
+      </div>
+      <button type="button" (click)="createOpen.set(false)">×</button>
+    </header>
+    <label
+      >{{ text('Classe', 'القسم')
+      }}<select [(ngModel)]="newClassroom">
+        @for (classroom of references()?.classrooms ?? []; track classroom.id) {
+          <option [value]="classroom.id">{{ classroom.name }}</option>
+        }
+      </select></label
+    >
+    <label
+      >{{ text('Professeur', 'الأستاذ')
+      }}<select [(ngModel)]="newTeacher">
+        @for (teacher of references()?.teachers ?? []; track teacher.id) {
+          <option [value]="teacher.id">{{ teacher.name }}</option>
+        }
+      </select></label
+    >
+    <div class="field-row">
+      <label>{{ text('Code matière', 'رمز المادة') }}<input [(ngModel)]="newSubjectCode" /></label
+      ><label>{{ text('Matière', 'المادة') }}<input [(ngModel)]="newSubjectName" /></label>
+    </div>
+    <div class="field-row">
+      <label>{{ text('Début', 'البداية') }}<input type="time" [(ngModel)]="newStartsAt" /></label
+      ><label>{{ text('Fin', 'النهاية') }}<input type="time" [(ngModel)]="newEndsAt" /></label>
+    </div>
+    <p class="default-note">
+      ✓
+      {{
+        text(
+          'Tous les élèves actifs seront marqués présents par défaut.',
+          'سيتم اعتبار جميع التلاميذ النشطين حاضرين افتراضياً.'
+        )
+      }}
+    </p>
+    <button mat-flat-button type="button" [disabled]="busy()" (click)="createSession()">
+      {{ text('Créer et faire l’appel', 'إنشاء وتسجيل الحضور') }}
+    </button>
+  </section>
+}
+
+@if (studentEditor(); as editor) {
+  <button
+    class="sheet-backdrop top"
+    type="button"
+    (click)="studentEditor.set(null)"
+    [attr.aria-label]="text('Fermer', 'إغلاق')"
+  ></button>
+  <section class="editor top" role="dialog" aria-modal="true">
+    <header>
+      <div>
+        <p>{{ editor.record.studentName }}</p>
+        <h2>
+          {{
+            editor.action === 'INCIDENT'
+              ? text('Incident disciplinaire', 'حادث تأديبي')
+              : text('Observation professeur', 'ملاحظة الأستاذ')
+          }}
+        </h2>
+      </div>
+      <button type="button" (click)="studentEditor.set(null)">×</button>
+    </header>
+    <label>{{ text('Catégorie', 'الفئة') }}<input [(ngModel)]="schoolLifeCategory" /></label>
+    @if (editor.action === 'INCIDENT') {
+      <label
+        >{{ text('Gravité', 'الخطورة')
+        }}<select [(ngModel)]="schoolLifeSeverity">
+          <option value="LOW">{{ text('Faible', 'منخفضة') }}</option>
+          <option value="MEDIUM">{{ text('Moyenne', 'متوسطة') }}</option>
+          <option value="HIGH">{{ text('Élevée', 'مرتفعة') }}</option>
+        </select></label
+      >
+    }
+    <label
+      >{{ text('Faits observés', 'الوقائع الملاحظة')
+      }}<textarea rows="4" [(ngModel)]="schoolLifeText"></textarea>
+    </label>
+    @if (editor.action === 'OBSERVATION') {
+      <label class="check"
+        ><input type="checkbox" [(ngModel)]="schoolLifeVisible" />
+        {{ text('Visible du parent', 'مرئية للوالدين') }}</label
+      >
+    } @else {
+      <label class="check"
+        ><input type="checkbox" [(ngModel)]="addWarning" />
+        {{ text('Ajouter un avertissement formel', 'إضافة إنذار رسمي') }}</label
+      >
+    }
+    <button mat-flat-button type="button" [disabled]="busy()" (click)="submitSchoolLife()">
+      {{ text('Enregistrer', 'حفظ') }}
+    </button>
+  </section>
+}

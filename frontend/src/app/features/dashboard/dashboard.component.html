@@ -1,0 +1,109 @@
+<main class="dashboard-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ i18n.translate('dashboard.eyebrow') }}</p>
+      <h1>
+        {{ i18n.translate('dashboard.greeting') }},
+        <span>{{ auth.user()?.displayName?.split(' ')?.[0] }}</span>
+      </h1>
+      <p>{{ i18n.translate('dashboard.subtitle') }}</p>
+    </div>
+    @if (auth.hasPermission('user.read')) {
+      <a mat-flat-button routerLink="/app/users">{{ i18n.translate('dashboard.manage') }}</a>
+    }
+  </header>
+
+  <section class="metrics" aria-label="Indicateurs">
+    <article>
+      <div class="metric-icon blue" aria-hidden="true">◎</div>
+      <div>
+        <span>{{ i18n.translate('dashboard.users') }}</span
+        ><strong>{{ userCount() ?? '—' }}</strong>
+      </div>
+      <small>équipe</small>
+    </article>
+    <article>
+      <div class="metric-icon gold" aria-hidden="true">◇</div>
+      <div>
+        <span>{{ i18n.translate('dashboard.roles') }}</span
+        ><strong>{{ roleCount() ?? '—' }}</strong>
+      </div>
+      <small>métiers</small>
+    </article>
+    <article>
+      <div class="metric-icon blue" aria-hidden="true">✓</div>
+      <div>
+        <span>{{ i18n.translate('dashboard.security') }}</span
+        ><strong>3</strong>
+      </div>
+      <small>espaces</small>
+    </article>
+    <article>
+      <div class="metric-icon coral" aria-hidden="true">↗</div>
+      <div>
+        <span>{{ i18n.translate('dashboard.platform') }}</span
+        ><strong>35+</strong>
+      </div>
+      <small>services</small>
+    </article>
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="identity-card">
+      <div class="card-heading">
+        <div>
+          <p class="eyebrow">{{ i18n.translate('dashboard.dailySchool') }}</p>
+          <h2>{{ i18n.translate('dashboard.identityTitle') }}</h2>
+        </div>
+        <span class="live-badge"><i></i>{{ i18n.translate('dashboard.ready') }}</span>
+      </div>
+      <p class="card-description">{{ i18n.translate('dashboard.identityText') }}</p>
+      <div class="security-list">
+        <div>
+          <span>✓</span>
+          <p>{{ i18n.translate('dashboard.checkPassword') }}</p>
+          <small>centralisés</small>
+        </div>
+        <div>
+          <span>✓</span>
+          <p>{{ i18n.translate('dashboard.checkRefresh') }}</p>
+          <small>à jour</small>
+        </div>
+        <div>
+          <span>✓</span>
+          <p>{{ i18n.translate('dashboard.checkTenant') }}</p>
+          <small>réunis</small>
+        </div>
+        <div>
+          <span>✓</span>
+          <p>{{ i18n.translate('dashboard.checkAudit') }}</p>
+          <small>connectées</small>
+        </div>
+      </div>
+    </article>
+
+    <article class="next-card">
+      <span class="next-number">02</span>
+      <div>
+        <p class="eyebrow">{{ i18n.translate('dashboard.nextTitle') }}</p>
+        <h2>Organisation<br />& campus</h2>
+        <p>{{ i18n.translate('dashboard.nextText') }}</p>
+      </div>
+      <div class="next-progress"><span></span></div>
+    </article>
+  </section>
+
+  <section class="profile-strip">
+    <div class="profile-avatar">{{ auth.user()?.displayName?.slice(0, 2)?.toUpperCase() }}</div>
+    <div>
+      <strong>{{ auth.user()?.displayName }}</strong>
+      <span>{{ auth.user()?.email }}</span>
+    </div>
+    <div class="profile-roles">
+      @for (role of auth.user()?.roles; track role) {
+        <span>{{ roleLabel(role) }}</span>
+      }
+    </div>
+    <span class="session-status"><i></i>{{ i18n.translate('shell.accountActive') }}</span>
+  </section>
+</main>

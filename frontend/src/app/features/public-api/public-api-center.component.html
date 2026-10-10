@@ -1,0 +1,190 @@
+<main class="api-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span>API publique v1</span>
+      <h1>Ouverte par contrat.<br /><em>Fermée par défaut.</em></h1>
+      <p>
+        Branchez un SIS, une comptabilité ou un outil interne sans exposer le modèle SchoolZ. Chaque
+        clé reçoit uniquement ses scopes, son quota et sa trace.
+      </p>
+      <button type="button" (click)="openCreator()">+ Créer une clé serveur</button>
+    </div>
+    <div class="api-glyph" aria-hidden="true"><i>&#123; &#125;</i><b>v1</b><span></span></div>
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="message success" role="status">{{ success() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="loading"><span></span>Vérification des contrats d’accès…</div>
+  } @else if (data(); as dashboard) {
+    <section class="metrics">
+      <div>
+        <strong>{{ dashboard.statistics.clientCount }}</strong
+        ><span>clients déclarés</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.activeCount }}</strong
+        ><span>clés actives</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.requestCount }}</strong
+        ><span>requêtes tracées</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.limitedCount }}</strong
+        ><span>quotas atteints</span>
+      </div>
+    </section>
+
+    <section class="contract-strip">
+      <header>
+        <span>Contrat stable</span>
+        <h2>Trois ressources, jamais les tables.</h2>
+        <a href="/swagger-ui/index.html" target="_blank" rel="noreferrer">Ouvrir OpenAPI ↗</a>
+      </header>
+      <div class="endpoint-flow">
+        @for (endpoint of dashboard.endpoints; track endpoint.path) {
+          <article>
+            <b>{{ endpoint.method }}</b
+            ><code>{{ endpoint.path }}</code
+            ><span>{{ endpoint.scope }}</span>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section class="api-workspace">
+      <div class="clients">
+        <header class="section-head">
+          <span>Identités techniques</span>
+          <h2>À chaque système, sa clé et ses limites.</h2>
+        </header>
+        <div class="client-stream">
+          @for (client of dashboard.clients; track client.id; let index = $index) {
+            <article [class.revoked]="!client.active">
+              <div class="client-index">{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</div>
+              <div class="client-story">
+                <div>
+                  <span [class.active]="client.active">{{
+                    client.active ? 'Active' : 'Révoquée'
+                  }}</span>
+                  <code>{{ client.keyPrefix }}••••</code>
+                </div>
+                <h3>{{ client.name }}</h3>
+                <p>{{ client.description }}</p>
+                <small>
+                  {{ client.rateLimitPerMinute }}/min · créée le
+                  {{ client.createdAt | date: 'dd/MM/yyyy' }}
+                </small>
+              </div>
+              <div class="scope-cloud">
+                @for (scope of client.scopes; track scope) {
+                  <span>{{ scope }}</span>
+                }
+              </div>
+              <div class="client-action">
+                @if (client.active) {
+                  <input
+                    type="text"
+                    [ngModel]="reason(client.id)"
+                    (ngModelChange)="setReason(client.id, $event)"
+                    placeholder="Motif de révocation"
+                    [attr.aria-label]="'Motif de révocation pour ' + client.name"
+                  />
+                  <button type="button" [disabled]="busy()" (click)="revoke(client)">
+                    Révoquer
+                  </button>
+                } @else {
+                  <strong>Accès définitivement fermé</strong>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      </div>
+
+      <aside class="trace">
+        <span>Traçabilité serveur</span>
+        <h2>Chaque appel laisse une empreinte.</h2>
+        <div class="trace-stream">
+          @for (log of dashboard.requestLogs; track log.requestId) {
+            <article [class.warning]="log.statusCode >= 400">
+              <i>{{ log.statusCode }}</i>
+              <div>
+                <strong>{{ log.clientName }}</strong>
+                <code>{{ log.method }} {{ log.path }}</code>
+                <p>{{ outcomeName(log.outcome) }} · {{ log.durationMs }} ms</p>
+                <small>{{ log.requestedAt | date: 'dd/MM HH:mm:ss' }}</small>
+              </div>
+            </article>
+          } @empty {
+            <div class="trace-empty">
+              <strong>Aucun appel pour le moment.</strong>
+              <p>Utilisez la clé de démonstration pour faire apparaître la première trace.</p>
+            </div>
+          }
+        </div>
+      </aside>
+    </section>
+  }
+</main>
+
+@if (drawerOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)"></button>
+  <aside class="drawer" aria-label="Créer une clé API">
+    <button class="close" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)">
+      ×
+    </button>
+    <span>Nouvelle identité serveur</span>
+    <h2>Donner le minimum nécessaire.</h2>
+    <p>Le secret en clair sera affiché une seule fois après la création.</p>
+
+    @if (revealedKey()) {
+      <div class="secret-once">
+        <strong>Copiez cette clé maintenant</strong>
+        <code>{{ revealedKey() }}</code>
+        <p>
+          SchoolZ n’en conserve que l’empreinte SHA-256. Fermer ce panneau efface cet affichage.
+        </p>
+      </div>
+    } @else {
+      <label
+        ><span>Nom *</span><input [(ngModel)]="form.name" placeholder="Ex. SIS partenaire"
+      /></label>
+      <label
+        ><span>Description</span><textarea rows="3" [(ngModel)]="form.description"></textarea>
+      </label>
+      <fieldset>
+        <legend>Scopes *</legend>
+        @for (scope of data()?.allowedScopes ?? []; track scope) {
+          <label [class.checked]="hasScope(scope)">
+            <input
+              type="checkbox"
+              [checked]="hasScope(scope)"
+              (change)="toggleScope(scope, $any($event.target).checked)"
+            />
+            {{ scope }}
+          </label>
+        }
+      </fieldset>
+      <div class="two">
+        <label
+          ><span>Quota / minute</span
+          ><input type="number" min="1" max="1000" [(ngModel)]="form.rateLimitPerMinute"
+        /></label>
+        <label
+          ><span>Expiration facultative</span
+          ><input type="datetime-local" [(ngModel)]="form.expiresAt"
+        /></label>
+      </div>
+      <button class="create" type="button" [disabled]="busy()" (click)="create()">
+        {{ busy() ? 'Création…' : 'Créer et révéler la clé' }}
+      </button>
+    }
+  </aside>
+}

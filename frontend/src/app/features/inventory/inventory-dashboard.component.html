@@ -1,0 +1,739 @@
+<main class="inventory-page">
+  @if (loading()) {
+    <div class="state-panel" role="status">Ouverture du carnet d’inventaire…</div>
+  } @else if (data(); as dashboard) {
+    <section class="inventory-hero" aria-labelledby="inventory-title">
+      <div class="hero-copy">
+        <span class="eyebrow">INVENTAIRE</span>
+        <h1 id="inventory-title">Chaque objet a<br /><em>une histoire.</em></h1>
+        <p>
+          Du livre partagé au projecteur affecté, SchoolZ conserve l’emplacement, le mouvement et la
+          personne responsable — sans effacer le passé.
+        </p>
+        <div class="hero-actions">
+          <button type="button" (click)="openAsset()">+ Identifier un actif</button>
+          <button type="button" class="soft" (click)="openItem()">+ Créer un article</button>
+        </div>
+      </div>
+      <div class="object-orbit" aria-label="Objets suivis dans l’inventaire">
+        <div class="orbit-ring ring-one"></div>
+        <div class="orbit-ring ring-two"></div>
+        <div class="orbit-core">
+          <strong>{{ dashboard.statistics.assets }}</strong>
+          <span>actifs identifiés</span>
+        </div>
+        <span class="floating-object computer">⌘ <small>ordinateur</small></span>
+        <span class="floating-object books">▥ <small>livres</small></span>
+        <span class="floating-object projector">◈ <small>projecteur</small></span>
+      </div>
+    </section>
+
+    <section class="pulse-line" aria-label="Synthèse inventaire">
+      <div>
+        <strong>{{ dashboard.statistics.assignedAssets }}</strong
+        ><span>actif(s) confié(s)</span>
+      </div>
+      <i></i>
+      <div>
+        <strong>{{ dashboard.statistics.inventoryItems }}</strong
+        ><span>références en stock</span>
+      </div>
+      <i></i>
+      <div class="warning">
+        <strong>{{ dashboard.statistics.lowStockItems }}</strong
+        ><span>alerte(s) de niveau</span>
+      </div>
+      <i></i>
+      <div>
+        <strong>{{ dashboard.statistics.movements }}</strong
+        ><span>mouvements conservés</span>
+      </div>
+    </section>
+
+    @if (notice()) {
+      <p class="notice" role="status">{{ notice() }}</p>
+    }
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    <nav class="section-nav" aria-label="Rubriques inventaire">
+      <button
+        type="button"
+        [class.active]="activeSection() === 'assets'"
+        (click)="selectSection('assets')"
+      >
+        <span>01</span><strong>Actifs identifiés</strong
+        ><small>{{ dashboard.assets.length }}</small>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeSection() === 'stock'"
+        (click)="selectSection('stock')"
+      >
+        <span>02</span><strong>Stocks & mouvements</strong
+        ><small>{{ dashboard.items.length }}</small>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeSection() === 'locations'"
+        (click)="selectSection('locations')"
+      >
+        <span>03</span><strong>Carte des lieux</strong
+        ><small>{{ dashboard.locations.length }}</small>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeSection() === 'history'"
+        (click)="selectSection('history')"
+      >
+        <span>04</span><strong>Fil d’histoire</strong
+        ><small>{{ dashboard.assetHistory.length }}</small>
+      </button>
+    </nav>
+
+    @if (activeSection() === 'assets') {
+      <section class="content-section">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow ink">PARC IDENTIFIÉ</span>
+            <h2>Les équipements circulent, leur identité reste.</h2>
+            <p>
+              Numéro d’inventaire, série, état, lieu et bénéficiaire sont réunis dans le même fil.
+            </p>
+          </div>
+          <button type="button" class="secondary-action" (click)="openAsset()">Nouvel actif</button>
+        </header>
+
+        <div class="asset-stream">
+          @for (asset of dashboard.assets; track asset.id; let index = $index) {
+            <article class="asset-row" [class.offset]="index % 2 === 1">
+              <div class="asset-symbol" [attr.data-category]="asset.category">
+                {{ categoryIcon(asset.category) }}
+              </div>
+              <div class="asset-identity">
+                <span>{{ asset.assetTag }}</span>
+                <h3>{{ asset.name }}</h3>
+                <p>
+                  {{ categoryLabel(asset.category) }}
+                  @if (asset.brand || asset.model) {
+                    · {{ asset.brand }} {{ asset.model }}
+                  }
+                </p>
+              </div>
+              <div class="asset-place">
+                <small>MAINTENANT</small>
+                <strong>{{
+                  asset.activeAssignee || asset.locationName || 'Sans emplacement'
+                }}</strong>
+                <span>{{ asset.locationCode }}</span>
+              </div>
+              <div class="asset-condition">
+                <em [attr.data-status]="asset.status">{{ statusLabel(asset.status) }}</em>
+                <span>État {{ asset.condition.toLowerCase() }}</span>
+                <small>{{ asset.historyCount }} événement(s)</small>
+              </div>
+              <div class="row-actions">
+                @if (asset.status === 'AVAILABLE') {
+                  <button type="button" (click)="openAssignment(asset)">Affecter</button>
+                }
+                @if (asset.status === 'ASSIGNED') {
+                  <button type="button" (click)="openReturn(asset)">Restituer</button>
+                }
+                @if (asset.status !== 'ASSIGNED' && asset.status !== 'RETIRED') {
+                  <button type="button" class="quiet" (click)="openStatus(asset)">
+                    Changer l’état
+                  </button>
+                }
+              </div>
+            </article>
+          } @empty {
+            <div class="empty-state">Aucun actif identifié.</div>
+          }
+        </div>
+      </section>
+    }
+
+    @if (activeSection() === 'stock') {
+      <section class="content-section stock-section">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow ink">STOCKS VIVANTS</span>
+            <h2>Voir ce qui reste, et surtout comment c’est arrivé là.</h2>
+            <p>
+              Chaque quantité est mise à jour à partir des entrées, sorties, transferts et
+              ajustements enregistrés.
+            </p>
+          </div>
+          <button type="button" class="secondary-action" (click)="openItem()">
+            Nouvel article
+          </button>
+        </header>
+
+        <div class="stock-shelves">
+          @for (item of dashboard.items; track item.id) {
+            <article class="stock-shelf" [class.low]="item.lowStock">
+              <div class="shelf-label">
+                <span>{{ item.sku }}</span>
+                <i>{{ categoryIcon(item.category) }}</i>
+              </div>
+              <div class="shelf-story">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.description }}</p>
+                <div class="balance-chips">
+                  @for (balance of item.balances; track balance.id) {
+                    <span
+                      ><strong>{{ balance.quantity | number: '1.0-3' }}</strong>
+                      {{ balance.locationName }}</span
+                    >
+                  }
+                </div>
+              </div>
+              <div class="shelf-total">
+                <strong>{{ item.totalQuantity | number: '1.0-3' }}</strong>
+                <span>{{ item.unit }}</span>
+                <small>seuil {{ item.minimumStock | number: '1.0-3' }}</small>
+                @if (item.lowStock) {
+                  <em>À réapprovisionner</em>
+                }
+              </div>
+              <button type="button" class="round-action" (click)="openMovement(item)">
+                Mouvement →
+              </button>
+            </article>
+          }
+        </div>
+
+        <div class="movement-river">
+          <header>
+            <span class="eyebrow ink">DERNIERS MOUVEMENTS</span>
+            <h3>Le journal ne se réécrit jamais.</h3>
+          </header>
+          @for (movement of dashboard.movements.slice(0, 8); track movement.id) {
+            <div class="movement-line">
+              <time>{{ movement.occurredOn | date: 'dd MMM' }}</time>
+              <i [attr.data-type]="movement.movementType">{{
+                movement.movementType === 'TRANSFER'
+                  ? '↝'
+                  : movement.movementType.includes('IN')
+                    ? '+'
+                    : '−'
+              }}</i>
+              <div>
+                <strong>{{ movementLabel(movement.movementType) }} · {{ movement.itemName }}</strong
+                ><span
+                  >{{ movement.fromLocationName || 'Extérieur' }} →
+                  {{ movement.toLocationName || 'Sortie' }}</span
+                >
+              </div>
+              <b>{{ movement.quantity | number: '1.0-3' }}</b>
+              <small>{{ movement.reference }}</small>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    @if (activeSection() === 'locations') {
+      <section class="content-section location-section">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow ink">CARTOGRAPHIE INTERNE</span>
+            <h2>Les objets prennent place dans l’école.</h2>
+            <p>Réserves, salles, bibliothèque et bureaux forment un référentiel partagé.</p>
+          </div>
+          <button type="button" class="secondary-action" (click)="openLocation()">
+            Nouvel emplacement
+          </button>
+        </header>
+        <div class="location-map">
+          <div class="map-thread" aria-hidden="true"></div>
+          @for (location of dashboard.locations; track location.id; let index = $index) {
+            <article class="location-node" [style.--node-index]="index">
+              <span class="node-number">{{ index + 1 | number: '2.0' }}</span>
+              <small>{{ location.locationType }}</small>
+              <h3>{{ location.name }}</h3>
+              <p>{{ location.description }}</p>
+              <footer>
+                <span>{{ location.assetCount }} actif(s)</span>
+                <span>{{ location.stockedItemCount }} stock(s)</span>
+              </footer>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    @if (activeSection() === 'history') {
+      <section class="content-section history-section">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow ink">HISTOIRE COMPLÈTE</span>
+            <h2>Ce qui a été confié, rendu ou réparé reste visible.</h2>
+            <p>L’historique des actifs et les mouvements de quantité sont conservés séparément.</p>
+          </div>
+        </header>
+        <div class="history-layout">
+          <div class="event-timeline">
+            @for (event of dashboard.assetHistory; track event.id) {
+              <article>
+                <time>{{ event.eventDate | date: 'dd MMM yyyy' }}</time>
+                <i [attr.data-event]="event.eventType"></i>
+                <div>
+                  <span>{{ event.assetTag }} · {{ event.eventType }}</span>
+                  <h3>{{ event.assetName }}</h3>
+                  <p>{{ event.detail }}</p>
+                  <small>{{ event.locationName }} · {{ event.recordedByName }}</small>
+                </div>
+              </article>
+            }
+          </div>
+          <aside class="assignment-ledger">
+            <span class="eyebrow">AFFECTATIONS</span>
+            <h3>Registre des responsabilités</h3>
+            @for (assignment of dashboard.assignments; track assignment.id) {
+              <div>
+                <em [attr.data-status]="assignment.status">{{ statusLabel(assignment.status) }}</em>
+                <strong>{{ assignment.assetName }}</strong>
+                <span>{{ assignment.assigneeLabel }}</span>
+                <small
+                  >{{ assignment.assignedOn | date: 'dd/MM/yyyy' }}
+                  @if (assignment.returnedOn) {
+                    → {{ assignment.returnedOn | date: 'dd/MM/yyyy' }}
+                  }
+                </small>
+              </div>
+            }
+          </aside>
+        </div>
+      </section>
+    }
+
+    @if (drawer()) {
+      <button
+        class="drawer-backdrop"
+        type="button"
+        (click)="closeDrawer()"
+        aria-label="Fermer le formulaire"
+      ></button>
+      <aside class="drawer" role="complementary" aria-label="Formulaire inventaire">
+        <header>
+          <div>
+            <span class="eyebrow ink">ACTION GUIDÉE</span>
+            <h2>
+              @switch (drawer()) {
+                @case ('asset') {
+                  Identifier un actif
+                }
+                @case ('item') {
+                  Créer une référence de stock
+                }
+                @case ('location') {
+                  Ajouter un emplacement
+                }
+                @case ('movement') {
+                  Enregistrer un mouvement
+                }
+                @case ('assignment') {
+                  Confier un actif
+                }
+                @case ('return') {
+                  Contrôler la restitution
+                }
+                @case ('status') {
+                  Changer le statut
+                }
+              }
+            </h2>
+          </div>
+          <button type="button" (click)="closeDrawer()" aria-label="Fermer">×</button>
+        </header>
+
+        @if (drawer() === 'asset') {
+          <form (ngSubmit)="saveAsset()">
+            <label
+              >Numéro d’inventaire<input name="assetTag" [(ngModel)]="assetForm.assetTag" required
+            /></label>
+            <label
+              >Nom de l’actif<input name="assetName" [(ngModel)]="assetForm.name" required
+            /></label>
+            <div class="field-pair">
+              <label
+                >Catégorie<select name="assetCategory" [(ngModel)]="assetForm.category">
+                  <option value="COMPUTER">Ordinateur</option>
+                  <option value="TABLET">Tablette</option>
+                  <option value="PROJECTOR">Projecteur</option>
+                  <option value="BOOK">Livre identifié</option>
+                  <option value="TEACHING_MATERIAL">Matériel pédagogique</option>
+                  <option value="OTHER">Autre</option>
+                </select></label
+              >
+              <label
+                >Emplacement<select
+                  name="assetLocation"
+                  [(ngModel)]="assetForm.locationId"
+                  required
+                >
+                  <option value="">Choisir</option>
+                  @for (location of dashboard.locations; track location.id) {
+                    <option [value]="location.id">{{ location.name }}</option>
+                  }
+                </select></label
+              >
+            </div>
+            <div class="field-pair">
+              <label>Marque<input name="brand" [(ngModel)]="assetForm.brand" /></label
+              ><label>Modèle<input name="model" [(ngModel)]="assetForm.model" /></label>
+            </div>
+            <label
+              >Numéro de série<input name="serial" [(ngModel)]="assetForm.serialNumber"
+            /></label>
+            <div class="field-pair">
+              <label
+                >Date d’acquisition<input
+                  type="date"
+                  name="acquiredOn"
+                  [(ngModel)]="assetForm.acquiredOn" /></label
+              ><label
+                >Valeur MAD<input
+                  type="number"
+                  min="0"
+                  name="value"
+                  [(ngModel)]="assetForm.acquisitionValue"
+              /></label>
+            </div>
+            <label
+              >État physique<select name="condition" [(ngModel)]="assetForm.condition">
+                <option value="NEW">Neuf</option>
+                <option value="GOOD">Bon</option>
+                <option value="FAIR">Correct</option>
+                <option value="DAMAGED">Endommagé</option>
+              </select></label
+            >
+            <label
+              >Notes<textarea name="assetNotes" [(ngModel)]="assetForm.notes"></textarea>
+            </label>
+            <button class="submit" type="submit" [disabled]="saving()">Enregistrer l’actif</button>
+          </form>
+        }
+
+        @if (drawer() === 'item') {
+          <form (ngSubmit)="saveItem()">
+            <div class="field-pair">
+              <label>SKU<input name="sku" [(ngModel)]="itemForm.sku" required /></label
+              ><label>Unité<input name="unit" [(ngModel)]="itemForm.unit" required /></label>
+            </div>
+            <label
+              >Nom de l’article<input name="itemName" [(ngModel)]="itemForm.name" required
+            /></label>
+            <label
+              >Catégorie<select name="itemCategory" [(ngModel)]="itemForm.category">
+                <option value="BOOK">Livre</option>
+                <option value="UNIFORM">Uniforme</option>
+                <option value="TEACHING_MATERIAL">Matériel pédagogique</option>
+                <option value="OTHER">Autre</option>
+              </select></label
+            >
+            <div class="field-pair">
+              <label
+                >Seuil d’alerte<input
+                  type="number"
+                  min="0"
+                  name="minimum"
+                  [(ngModel)]="itemForm.minimumStock" /></label
+              ><label
+                >Quantité initiale<input
+                  type="number"
+                  min="0"
+                  name="opening"
+                  [(ngModel)]="itemForm.openingQuantity"
+              /></label>
+            </div>
+            <label
+              >Emplacement initial<select
+                name="openingLocation"
+                [(ngModel)]="itemForm.openingLocationId"
+              >
+                <option value="">Sans stock initial</option>
+                @for (location of dashboard.locations; track location.id) {
+                  <option [value]="location.id">{{ location.name }}</option>
+                }
+              </select></label
+            >
+            <label
+              >Description<textarea
+                name="itemDescription"
+                [(ngModel)]="itemForm.description"
+              ></textarea>
+            </label>
+            <button class="submit" type="submit" [disabled]="saving()">Créer la référence</button>
+          </form>
+        }
+
+        @if (drawer() === 'location') {
+          <form (ngSubmit)="saveLocation()">
+            <div class="field-pair">
+              <label
+                >Code<input name="locationCode" [(ngModel)]="locationForm.code" required /></label
+              ><label
+                >Type<select name="locationType" [(ngModel)]="locationForm.locationType">
+                  <option value="ROOM">Salle</option>
+                  <option value="WAREHOUSE">Réserve</option>
+                  <option value="LIBRARY">Bibliothèque</option>
+                  <option value="OFFICE">Bureau</option>
+                  <option value="BUILDING">Bâtiment</option>
+                  <option value="OTHER">Autre</option>
+                </select></label
+              >
+            </div>
+            <label>Nom<input name="locationName" [(ngModel)]="locationForm.name" required /></label>
+            <label
+              >Emplacement parent<select
+                name="parentLocation"
+                [(ngModel)]="locationForm.parentLocationId"
+              >
+                <option value="">Aucun</option>
+                @for (location of dashboard.locations; track location.id) {
+                  <option [value]="location.id">{{ location.name }}</option>
+                }
+              </select></label
+            >
+            <label
+              >Description<textarea
+                name="locationDescription"
+                [(ngModel)]="locationForm.description"
+              ></textarea>
+            </label>
+            <button class="submit" type="submit" [disabled]="saving()">Ajouter le lieu</button>
+          </form>
+        }
+
+        @if (drawer() === 'movement') {
+          <form (ngSubmit)="saveMovement()">
+            <p class="form-context">
+              {{ selectedItem()?.name }} · stock {{ selectedItem()?.totalQuantity }}
+            </p>
+            <label
+              >Type<select name="movementType" [(ngModel)]="movementForm.movementType">
+                <option value="INBOUND">Entrée</option>
+                <option value="OUTBOUND">Sortie</option>
+                <option value="TRANSFER">Transfert</option>
+                <option value="ADJUSTMENT_IN">Ajustement positif</option>
+                <option value="ADJUSTMENT_OUT">Ajustement négatif</option>
+              </select></label
+            >
+            @if (
+              movementForm.movementType !== 'INBOUND' &&
+              movementForm.movementType !== 'ADJUSTMENT_IN'
+            ) {
+              <label
+                >Depuis<select
+                  name="fromLocation"
+                  [(ngModel)]="movementForm.fromLocationId"
+                  required
+                >
+                  <option value="">Choisir</option>
+                  @for (location of dashboard.locations; track location.id) {
+                    <option [value]="location.id">{{ location.name }}</option>
+                  }
+                </select></label
+              >
+            }
+            @if (
+              movementForm.movementType !== 'OUTBOUND' &&
+              movementForm.movementType !== 'ADJUSTMENT_OUT'
+            ) {
+              <label
+                >Vers<select name="toLocation" [(ngModel)]="movementForm.toLocationId" required>
+                  <option value="">Choisir</option>
+                  @for (location of dashboard.locations; track location.id) {
+                    <option [value]="location.id">{{ location.name }}</option>
+                  }
+                </select></label
+              >
+            }
+            <div class="field-pair">
+              <label
+                >Quantité<input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  name="quantity"
+                  [(ngModel)]="movementForm.quantity"
+                  required /></label
+              ><label
+                >Date<input
+                  type="date"
+                  name="movementDate"
+                  [(ngModel)]="movementForm.occurredOn"
+                  required
+              /></label>
+            </div>
+            <label
+              >Référence<input name="movementReference" [(ngModel)]="movementForm.reference"
+            /></label>
+            <label
+              >Motif<textarea
+                name="movementReason"
+                [(ngModel)]="movementForm.reason"
+                required
+              ></textarea>
+            </label>
+            <button class="submit" type="submit" [disabled]="saving()">
+              Enregistrer le mouvement
+            </button>
+          </form>
+        }
+
+        @if (drawer() === 'assignment') {
+          <form (ngSubmit)="saveAssignment()">
+            <p class="form-context">
+              {{ selectedAsset()?.assetTag }} · {{ selectedAsset()?.name }}
+            </p>
+            <label
+              >Bénéficiaire<input
+                name="assigneeLabel"
+                [(ngModel)]="assignmentForm.assigneeLabel"
+                required
+            /></label>
+            <div class="field-pair">
+              <label
+                >Type<select name="assigneeType" [(ngModel)]="assignmentForm.assigneeType">
+                  <option value="PERSON">Personne</option>
+                  <option value="CLASSROOM">Classe</option>
+                  <option value="DEPARTMENT">Département</option>
+                  <option value="SERVICE">Service</option>
+                  <option value="OTHER">Autre</option>
+                </select></label
+              ><label
+                >Référence<input
+                  name="assigneeReference"
+                  [(ngModel)]="assignmentForm.assigneeReference"
+              /></label>
+            </div>
+            <label
+              >Lieu de destination<select
+                name="assignmentLocation"
+                [(ngModel)]="assignmentForm.destinationLocationId"
+              >
+                <option value="">Lieu actuel</option>
+                @for (location of dashboard.locations; track location.id) {
+                  <option [value]="location.id">{{ location.name }}</option>
+                }
+              </select></label
+            >
+            <div class="field-pair">
+              <label
+                >Affecté le<input
+                  type="date"
+                  name="assignedOn"
+                  [(ngModel)]="assignmentForm.assignedOn"
+                  required /></label
+              ><label
+                >Retour prévu<input type="date" name="dueOn" [(ngModel)]="assignmentForm.dueOn"
+              /></label>
+            </div>
+            <label
+              >Note<textarea name="assignmentNote" [(ngModel)]="assignmentForm.note"></textarea>
+            </label>
+            <button class="submit" type="submit" [disabled]="saving()">
+              Confirmer l’affectation
+            </button>
+          </form>
+        }
+
+        @if (drawer() === 'return') {
+          <form (ngSubmit)="saveReturn()">
+            <p class="form-context">
+              {{ selectedAsset()?.name }} · confié à {{ selectedAssignment()?.assigneeLabel }}
+            </p>
+            <label
+              >Lieu de retour<select
+                name="returnLocation"
+                [(ngModel)]="returnForm.returnLocationId"
+                required
+              >
+                <option value="">Choisir</option>
+                @for (location of dashboard.locations; track location.id) {
+                  <option [value]="location.id">{{ location.name }}</option>
+                }
+              </select></label
+            >
+            <div class="field-pair">
+              <label
+                >Date de retour<input
+                  type="date"
+                  name="returnedOn"
+                  [(ngModel)]="returnForm.returnedOn"
+                  required /></label
+              ><label
+                >État constaté<select name="conditionIn" [(ngModel)]="returnForm.conditionIn">
+                  <option value="NEW">Neuf</option>
+                  <option value="GOOD">Bon</option>
+                  <option value="FAIR">Correct</option>
+                  <option value="DAMAGED">Endommagé</option>
+                </select></label
+              >
+            </div>
+            <label
+              >Contrôle effectué<textarea
+                name="returnNote"
+                [(ngModel)]="returnForm.note"
+              ></textarea>
+            </label>
+            <button class="submit" type="submit" [disabled]="saving()">
+              Valider la restitution
+            </button>
+          </form>
+        }
+
+        @if (drawer() === 'status') {
+          <form (ngSubmit)="saveStatus()">
+            <p class="form-context">
+              {{ selectedAsset()?.assetTag }} · statut actuel
+              {{ statusLabel(selectedAsset()?.status || '') }}
+            </p>
+            <label
+              >Nouveau statut<select name="assetStatus" [(ngModel)]="statusForm.status">
+                <option value="AVAILABLE">Disponible</option>
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="LOST">Perdu</option>
+                <option value="RETIRED">Retiré</option>
+              </select></label
+            >
+            <label
+              >Emplacement<select name="statusLocation" [(ngModel)]="statusForm.locationId">
+                <option value="">Sans emplacement</option>
+                @for (location of dashboard.locations; track location.id) {
+                  <option [value]="location.id">{{ location.name }}</option>
+                }
+              </select></label
+            >
+            <div class="field-pair">
+              <label
+                >Date d’effet<input
+                  type="date"
+                  name="effectiveOn"
+                  [(ngModel)]="statusForm.effectiveOn"
+                  required /></label
+              ><label
+                >État physique<select name="statusCondition" [(ngModel)]="statusForm.condition">
+                  <option value="NEW">Neuf</option>
+                  <option value="GOOD">Bon</option>
+                  <option value="FAIR">Correct</option>
+                  <option value="DAMAGED">Endommagé</option>
+                </select></label
+              >
+            </div>
+            <label
+              >Motif<textarea name="statusNote" [(ngModel)]="statusForm.note" required></textarea>
+            </label>
+            <button class="submit" type="submit" [disabled]="saving()">
+              Historiser le nouveau statut
+            </button>
+          </form>
+        }
+      </aside>
+    }
+  }
+</main>

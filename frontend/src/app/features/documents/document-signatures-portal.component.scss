@@ -1,0 +1,323 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  color: #10203b;
+}
+.signature-portal {
+  min-height: 100vh;
+  padding: 0 clamp(1rem, 5vw, 5rem) 3rem;
+  background: #f5f3ed;
+}
+header {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #d6dade;
+}
+header > a {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 850;
+}
+header > a span {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-inline-end: 0.4rem;
+  border-radius: 50%;
+  background: #132749;
+  color: white;
+  font-size: 0.8rem;
+}
+nav {
+  display: flex;
+  gap: 1.2rem;
+}
+nav a {
+  color: #5f6c83;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+nav a.active {
+  color: #132749;
+  font-weight: 800;
+}
+header button {
+  border: 1px solid #c9cfd5;
+  border-radius: 999px;
+  padding: 0.4rem 0.65rem;
+  background: white;
+}
+.eyebrow {
+  color: #a06b2b;
+  font-size: 0.8rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+.hero {
+  padding: clamp(2.4rem, 6vw, 5rem) 0 1.7rem;
+}
+.hero h1 {
+  margin: 0.45rem 0;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+.hero > p:last-child {
+  max-width: 850px;
+  color: #5c6980;
+}
+.feedback {
+  padding: 0.75rem 1rem;
+}
+.feedback.error {
+  background: #f8e5e2;
+  color: #8b3229;
+}
+.feedback.success {
+  background: #e3eaf2;
+  color: #1c3767;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.68fr) minmax(500px, 1.32fr);
+  gap: 0.8rem;
+}
+aside {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+}
+aside button {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem;
+  border: 1px solid transparent;
+  background: #fff;
+  text-align: start;
+  cursor: pointer;
+}
+aside button.active {
+  background: #fff7e9;
+  border-color: #af772f;
+}
+aside span {
+  color: #9d692b;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+aside small {
+  color: #65738c;
+}
+.document {
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid #d7dbdf;
+  box-shadow: 0 20px 60px rgba(17, 34, 64, 0.05);
+}
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+}
+.title-row span {
+  color: #9c692b;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+.title-row h2 {
+  margin: 0.25rem 0;
+}
+.title-row p {
+  margin: 0;
+  color: #616e85;
+  font-size: 0.875rem;
+}
+.title-row button {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #c9cfd5;
+  background: #fff;
+}
+.steps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.3rem;
+  margin: 1.5rem 0;
+}
+.steps div {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  color: #8f9cae;
+  font-size: 0.8rem;
+}
+.steps span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e5e8eb;
+}
+.steps div.reached {
+  color: #132647;
+}
+.steps div.reached span {
+  background: #132647;
+  color: #fff;
+}
+.action-card,
+.waiting {
+  padding: 1rem;
+  background: #f1f4f7;
+  border-left: 3px solid #a87633;
+}
+.action-card h3 {
+  margin-top: 0;
+}
+.action-card > p {
+  color: #5b687e;
+}
+.action-card label:not(.check) {
+  display: grid;
+  gap: 0.35rem;
+}
+.action-card input[type='text'],
+.action-card label:not(.check) input {
+  padding: 0.7rem;
+  border: 1px solid #c8cdd3;
+}
+.check {
+  display: flex;
+  gap: 0.55rem;
+  align-items: start;
+  margin: 0.8rem 0;
+}
+.primary {
+  border: 0;
+  padding: 0.72rem 0.9rem;
+  background: #a16c2c;
+  color: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+.primary:disabled {
+  opacity: 0.52;
+}
+.signed {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #e3eaf3;
+}
+.signed > span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1e3c71;
+  color: #fff;
+  font-size: 1.3rem;
+}
+.signed h3 {
+  margin: 0;
+}
+.signed p {
+  margin: 0.3rem 0;
+}
+.signed code {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+details {
+  margin-top: 1rem;
+  border-top: 1px solid #e5e2da;
+  padding-top: 0.8rem;
+}
+details summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+details p {
+  font-size: 0.8rem;
+  color: #5d6a80;
+}
+.login {
+  min-height: calc(100vh - 72px);
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: 5vw;
+}
+.login h1 {
+  max-width: 800px;
+  font-size: clamp(2.8rem, 6vw, 5.8rem);
+  line-height: 0.92;
+  letter-spacing: -0.06em;
+}
+.login form {
+  max-width: 430px;
+  width: 100%;
+  justify-self: end;
+  padding: 1.4rem;
+  background: #fff;
+  border-top: 4px solid #a16c2c;
+}
+.login form label {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.7rem;
+  color: #5d6a80;
+  font-size: 0.875rem;
+}
+.login form input {
+  padding: 0.72rem;
+  border: 1px solid #c9cfd5;
+}
+footer {
+  display: flex;
+  justify-content: end;
+  margin-top: 1rem;
+}
+footer button {
+  border: 0;
+  background: transparent;
+  color: #132749;
+}
+[dir='rtl'] .action-card,
+[dir='rtl'] .waiting {
+  border-left: 0;
+  border-right: 3px solid #a87633;
+}
+@media (max-width: 900px) {
+  .workspace,
+  .login {
+    grid-template-columns: 1fr;
+  }
+  .login {
+    padding: 3rem 0;
+  }
+  .login form {
+    justify-self: start;
+  }
+}
+@media (max-width: 620px) {
+  nav {
+    display: none;
+  }
+  .steps {
+    grid-template-columns: 1fr;
+  }
+  .steps div {
+    grid-template-columns: 28px 1fr;
+    justify-items: start;
+  }
+  .title-row {
+    flex-direction: column;
+  }
+}

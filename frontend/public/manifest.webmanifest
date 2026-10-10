@@ -1,0 +1,59 @@
+{
+  "name": "SchoolZ — School ERP Maroc",
+  "short_name": "SchoolZ",
+  "description": "Le système de gestion unifié des écoles privées marocaines.",
+  "theme_color": "#1d4ed8",
+  "background_color": "#eff6ff",
+  "display": "standalone",
+  "scope": "/",
+  "id": "/family",
+  "start_url": "/family",
+  "lang": "fr-MA",
+  "dir": "auto",
+  "shortcuts": [
+    {
+      "name": "Espace famille",
+      "short_name": "Famille",
+      "url": "/family",
+      "icons": [{ "src": "icons/schoolz.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Devoirs",
+      "short_name": "Devoirs",
+      "url": "/homework",
+      "icons": [{ "src": "icons/schoolz.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Absences",
+      "short_name": "Absences",
+      "url": "/attendance",
+      "icons": [{ "src": "icons/schoolz.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Finance famille",
+      "short_name": "Finance",
+      "url": "/finance",
+      "icons": [{ "src": "icons/schoolz.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Messages SchoolZ",
+      "short_name": "Messages",
+      "url": "/messages",
+      "icons": [{ "src": "icons/schoolz.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Documents famille",
+      "short_name": "Documents",
+      "url": "/documents",
+      "icons": [{ "src": "icons/schoolz.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
+  "icons": [
+    {
+      "src": "icons/schoolz.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

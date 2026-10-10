@@ -1,0 +1,107 @@
+<main class="portal" [attr.dir]="i18n.locale() === 'ar-MA' ? 'rtl' : 'ltr'">
+  <header>
+    <a routerLink="/family"><b>SZ</b> SchoolZ</a>
+    <nav>
+      <a routerLink="/family">{{ text('Accueil', 'الرئيسية') }}</a
+      ><a routerLink="/documents">{{ text('Documents', 'الوثائق') }}</a
+      ><a class="active" routerLink="/transport">{{ text('Transport', 'النقل') }}</a>
+    </nav>
+    <button type="button" (click)="toggleLocale()">
+      {{ i18n.locale() === 'ar-MA' ? 'FR' : 'ع' }}
+    </button>
+  </header>
+  @if (authRequired()) {
+    <section class="login">
+      <div aria-busy="true">
+        <p>TRANSPORT FAMILLE</p>
+        <h1>{{ text('Session expirée', 'انتهت صلاحية الجلسة') }}</h1>
+        <p>
+          {{
+            text('Redirection vers la connexion sécurisée…', 'جار التحويل إلى صفحة الدخول الآمنة…')
+          }}
+        </p>
+      </div>
+    </section>
+  } @else if (dashboard(); as d) {
+    <section class="hero">
+      <p>TRANSPORT FAMILLE · {{ d.parentName }}</p>
+      <h1>{{ text('Transport de mes enfants', 'نقل أطفالي') }}</h1>
+      <span>{{
+        text(
+          'Le temps d’arrivée apparaît uniquement lorsqu’une position GPS est disponible.',
+          'لا يظهر وقت الوصول إلا عند توفر موقع GPS.'
+        )
+      }}</span>
+    </section>
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+    <section class="cards">
+      @for (child of d.children; track child.subscriptionId) {
+        <article [class.onboard]="child.onboard">
+          <div class="top">
+            <span>{{ child.latestTrip?.direction ?? '—' }}</span
+            ><strong>{{ child.studentName }}</strong
+            ><b>{{
+              child.onboard ? text('À bord', 'على متن الحافلة') : text('En attente', 'في الانتظار')
+            }}</b>
+          </div>
+          <h2>{{ child.message }}</h2>
+          <p>{{ child.routeName }} · {{ child.pickupStopName }} → {{ child.dropoffStopName }}</p>
+          <div class="bus">
+            <div>
+              <small>{{ text('Bus', 'الحافلة') }}</small
+              ><strong>{{ child.latestTrip?.vehicleCode ?? '—' }}</strong
+              ><span>{{ child.latestTrip?.registrationNumber }}</span>
+            </div>
+            <div>
+              <small>{{ text('Arrivée estimée', 'الوصول المتوقع') }}</small
+              ><strong>{{ child.eta.available ? child.eta.minutes + ' min' : '—' }}</strong
+              ><span>{{
+                child.eta.available
+                  ? child.eta.providerKey
+                  : text('GPS indisponible', 'GPS غير متاح')
+              }}</span>
+            </div>
+          </div>
+          <div class="timeline">
+            <div [class.done]="child.pickup">
+              <span>↑</span>
+              <div>
+                <strong>{{ text('Montée', 'الصعود') }}</strong
+                ><small
+                  >{{ child.pickup ? (child.pickup.occurredAt | date: 'HH:mm:ss') : '—' }} ·
+                  {{ child.pickup?.stopName }}</small
+                >
+              </div>
+            </div>
+            <div [class.done]="child.dropoff">
+              <span>↓</span>
+              <div>
+                <strong>{{ text('Descente', 'النزول') }}</strong
+                ><small
+                  >{{ child.dropoff ? (child.dropoff.occurredAt | date: 'HH:mm:ss') : '—' }} ·
+                  {{ child.dropoff?.stopName }}</small
+                >
+              </div>
+            </div>
+          </div>
+          @if (child.position) {
+            <p class="position">
+              GPS {{ child.position.latitude }}, {{ child.position.longitude }} ·
+              {{ child.position.recordedAt | date: 'HH:mm:ss' }}
+            </p>
+          }
+        </article>
+      } @empty {
+        <p>{{ text('Aucun abonnement transport actif.', 'لا يوجد اشتراك نقل نشط.') }}</p>
+      }
+    </section>
+    <footer>
+      <span>GPSProvider: {{ d.gpsProviders.join(' · ') }}</span
+      ><button type="button" (click)="logout()">
+        {{ text('Se déconnecter', 'تسجيل الخروج') }}
+      </button>
+    </footer>
+  }
+</main>

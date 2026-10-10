@@ -1,0 +1,222 @@
+<main class="privacy-page">
+  <header class="hero">
+    <div>
+      <span>Gouvernance responsable</span>
+      <h1 aria-label="Protéger les données, prouver chaque décision.">
+        Protéger les données,<br /><em>prouver chaque décision.</em>
+      </h1>
+      <p>
+        Finalités, consentements, droits, conservation, exports et hébergement réunis dans un
+        registre opérationnel par établissement.
+      </p>
+    </div>
+    <aside>
+      <strong>À valider avec votre conseil</strong>
+      <p>
+        Ces outils facilitent le suivi de l’établissement, sans remplacer la validation juridique
+        requise par la loi 09-08 et les exigences CNDP.
+      </p>
+    </aside>
+  </header>
+
+  @if (error()) {
+    <p class="notice error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="notice success" role="status">{{ message() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="loading" role="status">Ouverture du registre…</p>
+  } @else if (data(); as board) {
+    <section class="metrics" aria-label="Indicateurs de confidentialité">
+      <div>
+        <strong>{{ board.summary.openRequests }}</strong
+        ><span>demandes ouvertes</span>
+      </div>
+      <div>
+        <strong>{{ board.summary.overdueRequests }}</strong
+        ><span>échéances dépassées</span>
+      </div>
+      <div>
+        <strong>{{ board.summary.purposes }}</strong
+        ><span>finalités déclarées</span>
+      </div>
+      <div>
+        <strong>{{ board.summary.consentEvents }}</strong
+        ><span>preuves de consentement</span>
+      </div>
+    </section>
+
+    <section class="flow purposes">
+      <header>
+        <span>01 · Minimisation</span>
+        <h2>Pourquoi ces données existent-elles ?</h2>
+      </header>
+      <div class="purpose-list">
+        @for (purpose of board.purposes; track purpose.id) {
+          <article>
+            <div>
+              <b>{{ purpose.purposeCode }}</b>
+              @if (purpose.sensitive) {
+                <mark>Sensible</mark>
+              }
+            </div>
+            <h3>{{ purpose.name }}</h3>
+            <p>{{ purpose.description }}</p>
+            <dl>
+              <div>
+                <dt>Base à valider</dt>
+                <dd>{{ purpose.lawfulBasis }}</dd>
+              </div>
+              <div>
+                <dt>Données</dt>
+                <dd>{{ purpose.dataCategories }}</dd>
+              </div>
+              <div>
+                <dt>Conservation</dt>
+                <dd>{{ purpose.retentionDays }} jours</dd>
+              </div>
+            </dl>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section class="two-columns">
+      <div class="flow requests">
+        <header>
+          <span>02 · Droits des personnes</span>
+          <h2>Demandes à traiter</h2>
+        </header>
+        <form (ngSubmit)="createRequest()">
+          <label
+            >Type<select name="requestType" [(ngModel)]="requestForm.requestType">
+              <option value="ACCESS">Accès</option>
+              <option value="EXPORT">Export</option>
+              <option value="RECTIFICATION">Rectification</option>
+              <option value="ERASURE">Effacement / anonymisation</option>
+              <option value="RESTRICTION">Limitation</option>
+              <option value="OBJECTION">Opposition</option>
+            </select></label
+          >
+          <label
+            >Personne<select name="subjectType" [(ngModel)]="requestForm.subjectType">
+              <option value="STUDENT">Élève</option>
+              <option value="GUARDIAN">Responsable</option>
+              <option value="EMPLOYEE">Employé</option>
+              <option value="PROSPECT">Candidat</option>
+            </select></label
+          >
+          <label class="wide"
+            >Référence<input
+              name="subjectReference"
+              [(ngModel)]="requestForm.subjectReference"
+              required
+              placeholder="Matricule ou référence vérifiée"
+          /></label>
+          <button type="submit" [disabled]="busy() || !requestForm.subjectReference">
+            Enregistrer
+          </button>
+        </form>
+        <div class="request-list">
+          @for (request of board.requests; track request.id) {
+            <article>
+              <div>
+                <b>{{ request.requestNumber }}</b
+                ><span [class]="request.status.toLowerCase()">{{
+                  statusLabel(request.status)
+                }}</span>
+              </div>
+              <h3>{{ request.requestType }} · {{ request.subjectType }}</h3>
+              <p>
+                Échéance {{ request.dueAt | date: 'dd/MM/yyyy' }} · {{ request.subjectReference }}
+              </p>
+              <footer>
+                @if (request.status === 'RECEIVED' || request.status === 'IDENTITY_VERIFIED') {
+                  <button type="button" [disabled]="busy()" (click)="review(request)">
+                    Passer en revue
+                  </button>
+                }
+                @if (request.requestType === 'EXPORT' && request.status !== 'CANCELLED') {
+                  <button
+                    type="button"
+                    class="quiet"
+                    [disabled]="busy()"
+                    (click)="prepareExport(request)"
+                  >
+                    Tracer l’export
+                  </button>
+                }
+              </footer>
+            </article>
+          } @empty {
+            <p class="empty">Aucune demande enregistrée.</p>
+          }
+        </div>
+      </div>
+
+      <div class="flow governance">
+        <header>
+          <span>03 · Conservation</span>
+          <h2>Une durée, puis une action.</h2>
+        </header>
+        <div class="retention-list">
+          @for (policy of board.retention; track policy.id) {
+            <article>
+              <div>
+                <h3>{{ policy.dataCategory }}</h3>
+                <span>{{ policy.expiryAction }}</span>
+              </div>
+              <label
+                >Durée en jours<input
+                  #days
+                  type="number"
+                  min="1"
+                  max="36500"
+                  [value]="policy.retentionDays"
+              /></label>
+              <button
+                type="button"
+                [disabled]="busy()"
+                (click)="updateRetention(policy, days.value)"
+              >
+                Mettre à jour
+              </button>
+              @if (policy.legalHold) {
+                <small>Gel juridique actif : aucune purge automatique.</small>
+              }
+            </article>
+          }
+        </div>
+
+        <header class="hosting-title">
+          <span>04 · Localisation</span>
+          <h2>Où sont hébergées les données ?</h2>
+        </header>
+        <form class="hosting" (ngSubmit)="saveHosting()">
+          <label
+            >Pays<input name="country" maxlength="2" [(ngModel)]="hostingForm.countryCode"
+          /></label>
+          <label>Région<input name="region" [(ngModel)]="hostingForm.regionLabel" /></label>
+          <label class="wide"
+            >Hébergeur<input name="provider" [(ngModel)]="hostingForm.providerName"
+          /></label>
+          <label class="check"
+            ><input type="checkbox" name="rest" [(ngModel)]="hostingForm.encryptionAtRest" />
+            Chiffrement au repos déclaré</label
+          >
+          <label class="check"
+            ><input type="checkbox" name="transit" [(ngModel)]="hostingForm.encryptionInTransit" />
+            Chiffrement en transit déclaré</label
+          >
+          <label class="check"
+            ><input type="checkbox" name="border" [(ngModel)]="hostingForm.crossBorderTransfer" />
+            Transfert transfrontalier</label
+          >
+          <button type="submit" [disabled]="busy()">Enregistrer la fiche</button>
+        </form>
+      </div>
+    </section>
+  }
+</main>

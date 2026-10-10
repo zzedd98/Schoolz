@@ -1,0 +1,1253 @@
+<main class="grading-page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">
+        {{ text('Pédagogie', 'التدبير التربوي') }}
+      </p>
+      <h1>{{ text('Notes, évaluations & compétences', 'النقط والتقييمات والكفايات') }}</h1>
+      <p>
+        {{
+          text(
+            'Un dossier pédagogique adapté à chaque cycle, avec calculs configurables et historique complet.',
+            'ملف تربوي متكيف مع كل سلك، بحسابات قابلة للضبط وسجل كامل للتعديلات.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="head-actions">
+      <label>
+        <span>{{ text('Classe', 'القسم') }}</span>
+        <select [value]="selectedClassroomId()" (change)="selectClassroom($event)">
+          @for (classroom of references()?.classrooms ?? []; track classroom.id) {
+            <option [value]="classroom.id">
+              {{ classroom.name }} · {{ classroom.schoolLevelName }}
+            </option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>{{ text('Période', 'الفترة') }}</span>
+        <select [value]="selectedTermId()" (change)="selectTerm($event)">
+          @for (term of availableTerms(); track term.id) {
+            <option [value]="term.id">{{ term.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+  </header>
+
+  @if (busy()) {
+    <div class="loading-line"><span></span>{{ text('Mise à jour…', 'جاري التحديث…') }}</div>
+  }
+  @if (error()) {
+    <div class="notice error" role="alert">{{ error() }}</div>
+  }
+  @if (message()) {
+    <div class="notice success" role="status">{{ message() }}</div>
+  }
+
+  @if (dashboard(); as data) {
+    <section class="context-strip">
+      <div class="context-main">
+        <span class="level-mark">{{ data.context.schoolLevelCode.slice(0, 2) }}</span>
+        <div>
+          <small>{{ data.context.academicYearName }} · {{ data.context.academicTermName }}</small>
+          <strong>{{ data.context.classroomName }} · {{ data.context.gradeLevelName }}</strong>
+        </div>
+      </div>
+      <div class="policy-facts">
+        <span class="pill primary">{{ policyLabel(data.policy.evaluationMode) }}</span>
+        <span class="pill">{{ strategyLabel(data.policy.calculationStrategy) }}</span>
+        @if (data.policy.rankingsEnabled) {
+          <span class="pill amber">{{ text('Classement activé', 'الترتيب مفعل') }}</span>
+        }
+        <span class="pill ghost">{{ data.policy.name }}</span>
+      </div>
+    </section>
+
+    <nav class="tabs" [attr.aria-label]="text('Sections pédagogiques', 'الأقسام التربوية')">
+      <button
+        type="button"
+        [class.active]="activeTab() === 'GRADEBOOK'"
+        (click)="activeTab.set('GRADEBOOK')"
+      >
+        <span>01</span>{{ text('Carnet de notes', 'دفتر النقط') }}
+      </button>
+      <button
+        type="button"
+        [class.active]="activeTab() === 'COMPETENCIES'"
+        (click)="activeTab.set('COMPETENCIES')"
+      >
+        <span>02</span>{{ text('Compétences', 'الكفايات') }}
+      </button>
+      <button
+        type="button"
+        [class.active]="activeTab() === 'RESULTS'"
+        (click)="activeTab.set('RESULTS')"
+      >
+        <span>03</span>{{ text('Résultats & bulletins', 'النتائج والبيانات') }}
+      </button>
+      @if (auth.hasPermission('grade.configure')) {
+        <button
+          type="button"
+          [class.active]="activeTab() === 'CONFIGURATION'"
+          (click)="activeTab.set('CONFIGURATION')"
+        >
+          <span>04</span>{{ text('Configuration', 'الإعدادات') }}
+        </button>
+      }
+    </nav>
+
+    @if (activeTab() === 'GRADEBOOK') {
+      <section class="tab-content">
+        @if (data.policy.evaluationMode === 'NONE') {
+          <div class="empty-state calm">
+            <span aria-hidden="true">◌</span>
+            <h2>{{ text('Aucune note pour ce cycle', 'لا نقط في هذا السلك') }}</h2>
+            <p>
+              {{
+                text(
+                  'La politique de cet établissement désactive volontairement les évaluations chiffrées.',
+                  'سياسة المؤسسة تعطل عمداً التقييمات الرقمية لهذا السلك.'
+                )
+              }}
+            </p>
+          </div>
+        } @else if (!canUseNumericGrades()) {
+          <div class="empty-state calm">
+            <span aria-hidden="true">◇</span>
+            <h2>{{ text('Suivi par compétences', 'تتبع بالكفايات') }}</h2>
+            <p>
+              {{
+                text(
+                  'Ce niveau utilise des observations et des degrés de maîtrise, sans notes numériques.',
+                  'يعتمد هذا المستوى الملاحظات ودرجات التمكن دون نقط رقمية.'
+                )
+              }}
+            </p>
+            <button mat-flat-button type="button" (click)="activeTab.set('COMPETENCIES')">
+              {{ text('Ouvrir les compétences', 'فتح الكفايات') }}
+            </button>
+          </div>
+        } @else {
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">{{ text('Saisie quotidienne', 'الإدخال اليومي') }}</p>
+              <h2>{{ text('Carnet de la classe', 'دفتر القسم') }}</h2>
+              <p>
+                {{
+                  text(
+                    'Cliquez sur une cellule pour saisir ou corriger une note. Toute correction exige un motif.',
+                    'انقر على خانة لإدخال أو تعديل نقطة. كل تعديل يتطلب سبباً.'
+                  )
+                }}
+              </p>
+            </div>
+            <span class="count"
+              >{{ data.assessments.length }} {{ text('évaluations', 'تقييمات') }}</span
+            >
+          </div>
+
+          @if (data.assessments.length) {
+            <div class="gradebook-wrap">
+              <table class="gradebook">
+                <thead>
+                  <tr>
+                    <th class="student-column">{{ text('Élève', 'التلميذ') }}</th>
+                    @for (assessment of data.assessments; track assessment.id) {
+                      <th>
+                        <span class="subject-dot" [style.background]="assessment.color"></span>
+                        <strong>{{ assessment.title }}</strong>
+                        <small>{{ assessment.subjectCode }} · /{{ assessment.maximumScore }}</small>
+                        <small>{{ assessment.assessmentDate }}</small>
+                        @if (assessment.status === 'DRAFT') {
+                          <button
+                            class="publish-link"
+                            type="button"
+                            (click)="publishAssessment(assessment)"
+                          >
+                            {{ text('Publier', 'نشر') }}
+                          </button>
+                        } @else {
+                          <span class="published">{{ text('Publiée', 'منشور') }}</span>
+                        }
+                      </th>
+                    }
+                    <th>{{ text('Moyenne', 'المعدل') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (student of data.students; track student.id) {
+                    <tr>
+                      <th class="student-cell">
+                        <span class="student-avatar"
+                          >{{ student.firstName.slice(0, 1)
+                          }}{{ student.lastName.slice(0, 1) }}</span
+                        >
+                        <span>
+                          <strong>{{ student.firstName }} {{ student.lastName }}</strong>
+                          <small>{{ student.identifier || '—' }}</small>
+                        </span>
+                      </th>
+                      @for (assessment of data.assessments; track assessment.id) {
+                        <td>
+                          @if (gradeFor(assessment.id, student.id); as grade) {
+                            <button
+                              class="grade-value"
+                              type="button"
+                              [class.special]="grade.status !== 'GRADED'"
+                              (click)="openGradeEditor(assessment, student)"
+                            >
+                              @if (grade.status === 'GRADED') {
+                                <strong>{{ grade.rawScore }}</strong
+                                ><small>/{{ grade.maximumScore }}</small>
+                              } @else {
+                                <strong>{{ grade.status }}</strong>
+                              }
+                            </button>
+                            <button
+                              class="history-link"
+                              type="button"
+                              (click)="showHistory(assessment, student)"
+                            >
+                              {{ text('Historique', 'السجل') }} · v{{ grade.version + 1 }}
+                            </button>
+                          } @else {
+                            <button
+                              class="grade-empty"
+                              type="button"
+                              (click)="openGradeEditor(assessment, student)"
+                              [attr.aria-label]="text('Saisir une note', 'إدخال نقطة')"
+                            >
+                              +
+                            </button>
+                          }
+                        </td>
+                      }
+                      <td class="average-cell">
+                        <strong>{{ formatAverage(summaryAverage(student.id)) }}</strong>
+                        @if (data.policy.gradeScaleId) {
+                          <small>/20</small>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="empty-state compact">
+              <h3>{{ text('Commencez par créer une évaluation', 'ابدأ بإنشاء تقييم') }}</h3>
+              <p>
+                {{
+                  text(
+                    'Contrôle, examen ou activité : la formule appliquera la bonne catégorie.',
+                    'فرض أو امتحان أو نشاط: ستطبق الصيغة الفئة الصحيحة.'
+                  )
+                }}
+              </p>
+            </div>
+          }
+
+          <article class="form-card assessment-form">
+            <div class="card-title">
+              <span class="icon-block">＋</span>
+              <div>
+                <small>{{ text('Nouvelle donnée', 'معطى جديد') }}</small>
+                <h3>{{ text('Créer une évaluation', 'إنشاء تقييم') }}</h3>
+              </div>
+            </div>
+            <div class="form-grid three">
+              <label class="wide">
+                <span>{{ text('Intitulé', 'العنوان') }}</span>
+                <input [(ngModel)]="assessmentTitle" placeholder="Contrôle de fractions" />
+              </label>
+              <label>
+                <span>{{ text('Matière', 'المادة') }}</span>
+                <select [(ngModel)]="assessmentSubject">
+                  @for (subject of references()?.subjects ?? []; track subject.id) {
+                    <option [value]="subject.id">{{ subject.nameFr }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text("Type d'évaluation", 'نوع التقييم') }}</span>
+                <select [(ngModel)]="assessmentType">
+                  @for (type of references()?.assessmentTypes ?? []; track type.id) {
+                    @if (type.numericEnabled) {
+                      <option [value]="type.id">
+                        {{ type.nameFr }} · {{ type.calculationCategory }}
+                      </option>
+                    }
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Enseignant', 'الأستاذ') }}</span>
+                <select [(ngModel)]="assessmentTeacher">
+                  @for (teacher of references()?.teachers ?? []; track teacher.id) {
+                    <option [value]="teacher.id">{{ teacher.name }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Date', 'التاريخ') }}</span>
+                <input type="date" [(ngModel)]="assessmentDate" />
+              </label>
+              <label>
+                <span>{{ text('Barème', 'السلم') }}</span>
+                <input type="number" min="1" [(ngModel)]="assessmentMaximum" />
+              </label>
+              <label>
+                <span>{{ text('Poids', 'الوزن') }}</span>
+                <input type="number" min="0.1" step="0.1" [(ngModel)]="assessmentCoefficient" />
+              </label>
+              <label class="wide">
+                <span>{{ text('Description', 'الوصف') }}</span>
+                <input [(ngModel)]="assessmentDescription" />
+              </label>
+            </div>
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="
+                busy() ||
+                !assessmentTitle ||
+                !assessmentSubject ||
+                !assessmentType ||
+                !assessmentTeacher
+              "
+              (click)="createAssessment()"
+            >
+              {{ text("Créer l'évaluation", 'إنشاء التقييم') }}
+            </button>
+          </article>
+        }
+      </section>
+    }
+
+    @if (activeTab() === 'COMPETENCIES') {
+      <section class="tab-content split-layout">
+        @if (!canUseCompetencies()) {
+          <div class="empty-state calm full-span">
+            <span aria-hidden="true">◇</span>
+            <h2>
+              {{ text('Compétences désactivées pour ce cycle', 'الكفايات غير مفعلة لهذا السلك') }}
+            </h2>
+            <p>
+              {{
+                text(
+                  'La politique actuelle utilise uniquement des notes numériques.',
+                  'السياسة الحالية تعتمد النقط الرقمية فقط.'
+                )
+              }}
+            </p>
+          </div>
+        } @else {
+          <article class="form-card sticky-card">
+            <div class="card-title">
+              <span class="icon-block blue">✓</span>
+              <div>
+                <small>{{ text('Observation pédagogique', 'ملاحظة تربوية') }}</small>
+                <h2>{{ text('Évaluer une compétence', 'تقييم كفاية') }}</h2>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>{{ text('Élève', 'التلميذ') }}</span>
+                <select [(ngModel)]="competencyStudent">
+                  @for (student of data.students; track student.id) {
+                    <option [value]="student.id">
+                      {{ student.firstName }} {{ student.lastName }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Compétence', 'الكفاية') }}</span>
+                <select [(ngModel)]="competencyId">
+                  @for (competency of data.competencies; track competency.id) {
+                    <option [value]="competency.id">
+                      {{ competency.code }} · {{ competency.nameFr }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Niveau de maîtrise', 'درجة التمكن') }}</span>
+                <select [(ngModel)]="competencyLevel">
+                  @for (level of competencyLevels(); track level.code) {
+                    <option [value]="level.code">{{ levelLabel(level.code) }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Enseignant', 'الأستاذ') }}</span>
+                <select [(ngModel)]="competencyTeacher">
+                  @for (teacher of references()?.teachers ?? []; track teacher.id) {
+                    <option [value]="teacher.id">{{ teacher.name }}</option>
+                  }
+                </select>
+              </label>
+              <label class="full">
+                <span>{{ text('Observation', 'الملاحظة') }}</span>
+                <textarea rows="4" [(ngModel)]="competencyObservation"></textarea>
+              </label>
+            </div>
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="busy() || !competencyStudent || !competencyId || !competencyLevel"
+              (click)="evaluateCompetency()"
+            >
+              {{ text('Enregistrer le niveau', 'حفظ درجة التمكن') }}
+            </button>
+          </article>
+
+          <div class="evaluation-feed">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="eyebrow">{{ text('Journal de progression', 'سجل التقدم') }}</p>
+                <h2>{{ text('Évaluations récentes', 'آخر التقييمات') }}</h2>
+              </div>
+              <span class="count">{{ data.competencyEvaluations.length }}</span>
+            </div>
+            @for (evaluation of data.competencyEvaluations; track evaluation.id) {
+              <article class="evaluation-card">
+                <div class="evaluation-top">
+                  <span class="student-avatar small">{{ evaluation.studentName.slice(0, 2) }}</span>
+                  <div>
+                    <strong>{{ evaluation.studentName }}</strong>
+                    <small>{{ evaluation.competencyCode }} · {{ evaluation.competencyName }}</small>
+                  </div>
+                  <span class="mastery">{{ levelLabel(evaluation.levelCode) }}</span>
+                </div>
+                @if (evaluation.observation) {
+                  <p>“{{ evaluation.observation }}”</p>
+                }
+                <footer>
+                  {{ evaluation.teacherName }} · {{ evaluation.evaluatedAt.slice(0, 10) }}
+                </footer>
+              </article>
+            } @empty {
+              <div class="empty-state compact">
+                <h3>
+                  {{ text('Aucune observation pour cette période', 'لا ملاحظات خلال هذه الفترة') }}
+                </h3>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    @if (activeTab() === 'RESULTS') {
+      <section class="tab-content results-content">
+        <div class="metrics-grid">
+          <article>
+            <small>{{ text('Élèves évalués', 'التلاميذ المقيمون') }}</small>
+            <strong>{{ data.summaries.length }}</strong>
+            <span>{{ data.students.length }} {{ text('inscrits', 'مسجلين') }}</span>
+          </article>
+          <article>
+            <small>{{ text('Notes saisies', 'النقط المدخلة') }}</small>
+            <strong>{{ data.grades.length }}</strong>
+            <span>{{ data.assessments.length }} {{ text('évaluations', 'تقييمات') }}</span>
+          </article>
+          <article>
+            <small>{{ text('Compétences observées', 'الكفايات المقيمة') }}</small>
+            <strong>{{ data.competencyEvaluations.length }}</strong>
+            <span>{{ data.competencies.length }} {{ text('référencées', 'مرجعية') }}</span>
+          </article>
+          <article class="accent-metric">
+            <small>{{ text('Versions publiées', 'النسخ المنشورة') }}</small>
+            <strong>{{ publishedReportCount() }}</strong>
+            <span>{{ text('PDF immuables et vérifiables', 'ملفات PDF ثابتة وقابلة للتحقق') }}</span>
+          </article>
+        </div>
+
+        <div class="results-grid">
+          <article class="panel summaries-panel">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="eyebrow">{{ text('Calcul moteur', 'حساب المحرك') }}</p>
+                <h2>{{ text('Synthèse de la classe', 'خلاصة القسم') }}</h2>
+              </div>
+              <span class="formula-note">{{ strategyLabel(data.policy.calculationStrategy) }}</span>
+            </div>
+            <div class="summary-list">
+              @for (summary of data.summaries; track summary.studentId) {
+                <article class="summary-row">
+                  <div class="rank">
+                    @if (summary.rank) {
+                      <strong>{{ summary.rank }}</strong
+                      ><small>/{{ summary.classSize }}</small>
+                    } @else {
+                      <span>—</span>
+                    }
+                  </div>
+                  <div class="summary-person">
+                    <strong>{{ summary.studentName }}</strong>
+                    <small>
+                      @for (
+                        subject of summary.subjects;
+                        track subject.subjectId;
+                        let last = $last
+                      ) {
+                        {{ subject.subjectCode }} {{ formatAverage(subject.average) }}
+                        @if (!last) {
+                          ·
+                        }
+                      }
+                    </small>
+                  </div>
+                  <div class="summary-average">
+                    <strong>{{ formatAverage(summary.overallAverage) }}</strong
+                    ><small>/20</small>
+                  </div>
+                </article>
+              } @empty {
+                <div class="empty-state compact">
+                  <p>
+                    {{
+                      text(
+                        'Saisissez des notes pour obtenir les moyennes.',
+                        'أدخل النقط للحصول على المعدلات.'
+                      )
+                    }}
+                  </p>
+                </div>
+              }
+            </div>
+          </article>
+
+          <article class="panel report-panel">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="eyebrow">{{ text('Instantané pédagogique', 'لقطة تربوية') }}</p>
+                <h2>{{ text('Bulletins calculés', 'البيانات المحسوبة') }}</h2>
+              </div>
+            </div>
+            <label>
+              <span>{{ text('Modèle', 'النموذج') }}</span>
+              <select [(ngModel)]="selectedTemplate">
+                <option value="">{{ text('Sans modèle', 'بدون نموذج') }}</option>
+                @for (template of templatesForClass(); track template.id) {
+                  <option [value]="template.id">
+                    {{ template.name }} · v{{ template.versionNumber }}
+                  </option>
+                }
+              </select>
+            </label>
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="busy() || !data.policy.reportCardsEnabled"
+              (click)="calculateReportCards()"
+            >
+              {{ text('Recalculer tous les bulletins', 'إعادة حساب كل البيانات') }}
+            </button>
+            <p class="helper">
+              {{
+                text(
+                  'Une publication fige le PDF et son empreinte. Toute correction produit une nouvelle version liée à la précédente.',
+                  'يثبت النشر ملف PDF وبصمته. كل تصحيح ينشئ نسخة جديدة مرتبطة بالنسخة السابقة.'
+                )
+              }}
+            </p>
+            <div class="report-list">
+              @for (report of latestReportCards(); track report.id) {
+                <div class="report-card-row" [class.is-published]="report.status === 'PUBLISHED'">
+                  <span
+                    class="status-dot"
+                    [class.published-dot]="report.status === 'PUBLISHED'"
+                  ></span>
+                  <p>
+                    <strong>{{ report.studentName }}</strong
+                    ><small>
+                      v{{ report.versionNumber }} · {{ statusLabel(report.status) }} ·
+                      {{ report.templateName || text('Calcul standard', 'حساب معياري') }}
+                    </small>
+                  </p>
+                  <div class="report-actions">
+                    <b>{{ formatAverage(report.overallAverage) }}</b>
+                    <button type="button" class="document-link" (click)="openPublication(report)">
+                      {{
+                        report.status === 'PUBLISHED'
+                          ? text('Versions', 'النسخ')
+                          : text('Prévisualiser', 'معاينة')
+                      }}
+                    </button>
+                    @if (report.status === 'PUBLISHED') {
+                      <button
+                        type="button"
+                        class="document-link"
+                        (click)="downloadReportCard(report)"
+                      >
+                        PDF
+                      </button>
+                    }
+                  </div>
+                </div>
+              } @empty {
+                <div class="empty-state compact">
+                  <p>
+                    {{
+                      text(
+                        'Calculez les bulletins pour préparer la publication.',
+                        'احسب البيانات لتحضير النشر.'
+                      )
+                    }}
+                  </p>
+                </div>
+              }
+            </div>
+          </article>
+        </div>
+
+        <div class="comments-grid">
+          <article class="form-card">
+            <div class="card-title">
+              <span class="icon-block amber">✎</span>
+              <div>
+                <small>{{ text('Appréciation', 'الملاحظة') }}</small>
+                <h3>{{ text('Ajouter un commentaire enseignant', 'إضافة ملاحظة الأستاذ') }}</h3>
+              </div>
+            </div>
+            <div class="form-grid two">
+              <label>
+                <span>{{ text('Élève', 'التلميذ') }}</span>
+                <select [(ngModel)]="commentStudent">
+                  @for (student of data.students; track student.id) {
+                    <option [value]="student.id">
+                      {{ student.firstName }} {{ student.lastName }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Matière', 'المادة') }}</span>
+                <select [(ngModel)]="commentSubject">
+                  <option value="">{{ text('Appréciation générale', 'ملاحظة عامة') }}</option>
+                  @for (subject of references()?.subjects ?? []; track subject.id) {
+                    <option [value]="subject.id">{{ subject.nameFr }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Enseignant', 'الأستاذ') }}</span>
+                <select [(ngModel)]="commentTeacher">
+                  @for (teacher of references()?.teachers ?? []; track teacher.id) {
+                    <option [value]="teacher.id">{{ teacher.name }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>{{ text('Type', 'النوع') }}</span>
+                <select [(ngModel)]="commentType">
+                  <option value="GENERAL">{{ text('Général', 'عام') }}</option>
+                  <option value="SUBJECT">{{ text('Matière', 'مادة') }}</option>
+                  <option value="HOMEROOM">
+                    {{ text('Professeur principal', 'الأستاذ الرئيسي') }}
+                  </option>
+                </select>
+              </label>
+              <label class="full">
+                <span>{{ text('Commentaire', 'الملاحظة') }}</span>
+                <textarea rows="3" [(ngModel)]="commentBody"></textarea>
+              </label>
+              <label class="check full">
+                <input type="checkbox" [(ngModel)]="commentVisible" />
+                <span>{{
+                  text('Visible par la famille lors de la publication', 'ظاهر للأسرة عند النشر')
+                }}</span>
+              </label>
+            </div>
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="busy() || !commentBody"
+              (click)="createComment()"
+            >
+              {{ text('Ajouter', 'إضافة') }}
+            </button>
+          </article>
+
+          <div class="comment-feed">
+            @for (comment of data.teacherComments; track comment.id) {
+              <article>
+                <header>
+                  <strong>{{ comment.studentName }}</strong
+                  ><span>{{ comment.commentType }}</span>
+                </header>
+                <p>{{ comment.body }}</p>
+                <footer>
+                  {{ comment.teacherName }} · {{ comment.subjectCode || text('Général', 'عام') }}
+                </footer>
+              </article>
+            } @empty {
+              <div class="empty-state compact">
+                <p>{{ text('Aucune appréciation.', 'لا ملاحظات.') }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+    }
+
+    @if (activeTab() === 'CONFIGURATION' && auth.hasPermission('grade.configure')) {
+      <section class="tab-content configuration-content">
+        <div class="configuration-intro">
+          <div>
+            <p class="eyebrow">{{ text('Configuration établissement', 'إعدادات المؤسسة') }}</p>
+            <h2>{{ text('Un modèle différent pour chaque cycle', 'نموذج مختلف لكل سلك') }}</h2>
+            <p>
+              {{
+                text(
+                  'Aucune formule n’est imposée : choisissez le mode, les catégories, coefficients et règles de classement.',
+                  'لا توجد صيغة مفروضة: اختر النمط والفئات والمعاملات وقواعد الترتيب.'
+                )
+              }}
+            </p>
+          </div>
+          <label>
+            <span>{{ text('Cycle à configurer', 'السلك المراد إعداده') }}</span>
+            <select [value]="configSchoolLevel" (change)="configureLevel($event)">
+              @for (level of references()?.schoolLevels ?? []; track level.id) {
+                <option [value]="level.id">{{ level.name }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <div class="config-grid">
+          <article class="form-card policy-card">
+            <div class="card-title">
+              <span class="icon-block">ƒ</span>
+              <div>
+                <small>{{ text('Moteur de calcul', 'محرك الحساب') }}</small>
+                <h3>{{ text('Politique du cycle', 'سياسة السلك') }}</h3>
+              </div>
+            </div>
+            <div class="mode-grid">
+              @for (mode of ['NONE', 'COMPETENCY_ONLY', 'HYBRID', 'NUMERIC']; track mode) {
+                <button
+                  type="button"
+                  [class.active]="policyMode === mode"
+                  (click)="policyMode = mode"
+                >
+                  <strong>{{ policyLabel(mode) }}</strong>
+                  <small>
+                    @switch (mode) {
+                      @case ('NONE') {
+                        {{ text('Crèche', 'الحضانة') }}
+                      }
+                      @case ('COMPETENCY_ONLY') {
+                        {{ text('Maternelle', 'التعليم الأولي') }}
+                      }
+                      @case ('HYBRID') {
+                        {{ text('Primaire', 'الابتدائي') }}
+                      }
+                      @default {
+                        {{ text('Collège / lycée', 'الإعدادي / الثانوي') }}
+                      }
+                    }
+                  </small>
+                </button>
+              }
+            </div>
+            <div class="form-grid two">
+              <label>
+                <span>{{ text('Stratégie', 'الاستراتيجية') }}</span>
+                <select [(ngModel)]="policyStrategy">
+                  <option value="WEIGHTED_MEAN">
+                    {{ text('Moyenne pondérée', 'معدل موزون') }}
+                  </option>
+                  <option value="CATEGORY_WEIGHTED">
+                    {{ text('Catégories pondérées', 'فئات موزونة') }}
+                  </option>
+                </select>
+              </label>
+              @if (policyMode === 'NUMERIC' || policyMode === 'HYBRID') {
+                <label>
+                  <span>{{ text('Barème numérique', 'سلم التنقيط') }}</span>
+                  <select [(ngModel)]="policyNumericScale">
+                    @for (scale of references()?.scales ?? []; track scale.id) {
+                      @if (scale.scaleType === 'NUMERIC') {
+                        <option [value]="scale.id">{{ scale.name }}</option>
+                      }
+                    }
+                  </select>
+                </label>
+              }
+              @if (policyMode === 'COMPETENCY_ONLY' || policyMode === 'HYBRID') {
+                <label>
+                  <span>{{ text('Échelle de compétences', 'سلم الكفايات') }}</span>
+                  <select [(ngModel)]="policyCompetencyScale">
+                    @for (scale of references()?.scales ?? []; track scale.id) {
+                      @if (scale.scaleType === 'COMPETENCY') {
+                        <option [value]="scale.id">{{ scale.name }}</option>
+                      }
+                    }
+                  </select>
+                </label>
+              }
+              @if (policyStrategy === 'CATEGORY_WEIGHTED') {
+                <label
+                  ><span>{{ text('Contrôle continu %', 'المراقبة المستمرة %') }}</span
+                  ><input type="number" min="0" max="100" [(ngModel)]="policyContinuousWeight"
+                /></label>
+                <label
+                  ><span>{{ text('Examens %', 'الامتحانات %') }}</span
+                  ><input type="number" min="0" max="100" [(ngModel)]="policyExamWeight"
+                /></label>
+              }
+              <label class="check"
+                ><input type="checkbox" [(ngModel)]="policyRankings" /><span>{{
+                  text('Activer le classement', 'تفعيل الترتيب')
+                }}</span></label
+              >
+              <label class="check"
+                ><input type="checkbox" [(ngModel)]="policyReportCards" /><span>{{
+                  text('Activer les bulletins', 'تفعيل البيانات')
+                }}</span></label
+              >
+            </div>
+            <button mat-flat-button type="button" [disabled]="busy()" (click)="savePolicy()">
+              {{ text('Enregistrer la politique', 'حفظ السياسة') }}
+            </button>
+          </article>
+
+          <article class="form-card">
+            <div class="card-title">
+              <span class="icon-block blue">20</span>
+              <div>
+                <small>{{ text('Référentiel', 'المرجع') }}</small>
+                <h3>{{ text('Nouveau barème', 'سلم تنقيط جديد') }}</h3>
+              </div>
+            </div>
+            <div class="form-grid two">
+              <label
+                ><span>{{ text('Code', 'الرمز') }}</span
+                ><input [(ngModel)]="scaleCode" placeholder="NOTE-20"
+              /></label>
+              <label
+                ><span>{{ text('Nom', 'الاسم') }}</span
+                ><input [(ngModel)]="scaleName" placeholder="Notes sur 20"
+              /></label>
+              <label
+                ><span>{{ text('Maximum', 'الحد الأقصى') }}</span
+                ><input type="number" [(ngModel)]="scaleMaximum"
+              /></label>
+              <label
+                ><span>{{ text('Seuil de réussite', 'عتبة النجاح') }}</span
+                ><input type="number" [(ngModel)]="scalePassing"
+              /></label>
+            </div>
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="busy() || !scaleCode || !scaleName"
+              (click)="createNumericScale()"
+            >
+              {{ text('Créer le barème', 'إنشاء السلم') }}
+            </button>
+            <div class="token-list">
+              @for (scale of references()?.scales ?? []; track scale.id) {
+                <span>{{ scale.code }} · {{ scale.name }}</span>
+              }
+            </div>
+          </article>
+
+          <article class="form-card">
+            <div class="card-title">
+              <span class="icon-block amber">T</span>
+              <div>
+                <small>{{ text('Catégorisation', 'التصنيف') }}</small>
+                <h3>{{ text("Type d'évaluation", 'نوع التقييم') }}</h3>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label
+                ><span>{{ text('Code', 'الرمز') }}</span
+                ><input [(ngModel)]="typeCode" placeholder="CONTROLE"
+              /></label>
+              <label
+                ><span>{{ text('Nom', 'الاسم') }}</span
+                ><input [(ngModel)]="typeName" placeholder="Contrôle continu"
+              /></label>
+              <label
+                ><span>{{ text('Catégorie de calcul', 'فئة الحساب') }}</span
+                ><select [(ngModel)]="typeCategory">
+                  <option value="CONTINUOUS">CONTINUOUS</option>
+                  <option value="EXAM">EXAM</option>
+                  <option value="PROJECT">PROJECT</option>
+                </select></label
+              >
+            </div>
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="busy() || !typeCode || !typeName"
+              (click)="createAssessmentType()"
+            >
+              {{ text('Créer le type', 'إنشاء النوع') }}
+            </button>
+          </article>
+
+          <article class="form-card">
+            <div class="card-title">
+              <span class="icon-block">×</span>
+              <div>
+                <small>{{ text('Pondération matière', 'معامل المادة') }}</small>
+                <h3>{{ text('Coefficient', 'المعامل') }}</h3>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label
+                ><span>{{ text('Niveau', 'المستوى') }}</span
+                ><select [(ngModel)]="coefficientGrade">
+                  @for (grade of references()?.gradeLevels ?? []; track grade.id) {
+                    <option [value]="grade.id">{{ grade.name }}</option>
+                  }
+                </select></label
+              >
+              <label
+                ><span>{{ text('Matière', 'المادة') }}</span
+                ><select [(ngModel)]="coefficientSubject">
+                  @for (subject of references()?.subjects ?? []; track subject.id) {
+                    <option [value]="subject.id">{{ subject.nameFr }}</option>
+                  }
+                </select></label
+              >
+              <label
+                ><span>{{ text('Coefficient', 'المعامل') }}</span
+                ><input type="number" min="0.1" step="0.1" [(ngModel)]="coefficientValue"
+              /></label>
+            </div>
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="busy()"
+              (click)="saveCoefficient()"
+            >
+              {{ text('Enregistrer', 'حفظ') }}
+            </button>
+          </article>
+
+          <article class="form-card">
+            <div class="card-title">
+              <span class="icon-block blue">◇</span>
+              <div>
+                <small>{{ text('Référentiel pédagogique', 'المرجع التربوي') }}</small>
+                <h3>{{ text('Nouvelle compétence', 'كفاية جديدة') }}</h3>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label
+                ><span>{{ text('Code', 'الرمز') }}</span
+                ><input [(ngModel)]="newCompetencyCode"
+              /></label>
+              <label
+                ><span>{{ text('Intitulé', 'العنوان') }}</span
+                ><input [(ngModel)]="newCompetencyName"
+              /></label>
+              <label
+                ><span>{{ text('Matière optionnelle', 'المادة الاختيارية') }}</span
+                ><select [(ngModel)]="newCompetencySubject">
+                  <option value="">{{ text('Transversale', 'عرضانية') }}</option>
+                  @for (subject of references()?.subjects ?? []; track subject.id) {
+                    <option [value]="subject.id">{{ subject.nameFr }}</option>
+                  }
+                </select></label
+              >
+            </div>
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="busy() || !newCompetencyCode || !newCompetencyName"
+              (click)="createCompetency()"
+            >
+              {{ text('Créer la compétence', 'إنشاء الكفاية') }}
+            </button>
+          </article>
+
+          <article class="form-card">
+            <div class="card-title">
+              <span class="icon-block amber">B</span>
+              <div>
+                <small>{{ text('Mise en forme', 'التنسيق') }}</small>
+                <h3>{{ text('Modèle de bulletin', 'نموذج البيان') }}</h3>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label
+                ><span>{{ text('Code', 'الرمز') }}</span
+                ><input [(ngModel)]="templateCode"
+              /></label>
+              <label
+                ><span>{{ text('Nom', 'الاسم') }}</span
+                ><input [(ngModel)]="templateName"
+              /></label>
+              <label
+                ><span>{{ text('Langue', 'اللغة') }}</span
+                ><select [(ngModel)]="templateLanguage">
+                  <option value="FR">Français</option>
+                  <option value="AR">العربية</option>
+                  <option value="BILINGUAL">FR + AR</option>
+                </select></label
+              >
+            </div>
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="busy() || !templateCode || !templateName"
+              (click)="createTemplate()"
+            >
+              {{ text('Créer le modèle', 'إنشاء النموذج') }}
+            </button>
+          </article>
+        </div>
+      </section>
+    }
+  } @else if (!busy()) {
+    <div class="empty-state calm page-empty">
+      <h2>{{ text('Aucune classe disponible', 'لا يوجد قسم متاح') }}</h2>
+      <p>
+        {{
+          text(
+            'Configurez d’abord la structure académique et les inscriptions.',
+            'قم أولاً بإعداد البنية الأكاديمية والتسجيلات.'
+          )
+        }}
+      </p>
+    </div>
+  }
+</main>
+
+@if (gradeEditor(); as editor) {
+  <div class="modal-backdrop">
+    <section class="modal" role="dialog" aria-modal="true">
+      <header>
+        <div>
+          <p class="eyebrow">{{ editor.assessment.subjectName }}</p>
+          <h2>{{ editor.student.firstName }} {{ editor.student.lastName }}</h2>
+          <span>{{ editor.assessment.title }} · /{{ editor.assessment.maximumScore }}</span>
+        </div>
+        <button type="button" (click)="closeGradeEditor()" aria-label="Fermer">×</button>
+      </header>
+      <div class="form-grid two">
+        <label
+          ><span>{{ text('Statut', 'الحالة') }}</span
+          ><select [(ngModel)]="gradeStatus">
+            <option value="GRADED">{{ text('Noté', 'منقط') }}</option>
+            <option value="ABSENT">{{ text('Absent', 'غائب') }}</option>
+            <option value="EXCUSED">{{ text('Dispensé', 'معفى') }}</option>
+            <option value="NOT_SUBMITTED">{{ text('Non rendu', 'لم يسلم') }}</option>
+          </select></label
+        >
+        @if (gradeStatus === 'GRADED') {
+          <label
+            ><span>{{ text('Note', 'النقطة') }}</span
+            ><input
+              class="score-input"
+              type="number"
+              min="0"
+              [max]="editor.assessment.maximumScore || 20"
+              step="0.25"
+              [(ngModel)]="gradeScore"
+          /></label>
+        }
+        <label class="full"
+          ><span>{{ text('Commentaire enseignant', 'ملاحظة الأستاذ') }}</span
+          ><textarea rows="3" [(ngModel)]="gradeComment"></textarea>
+        </label>
+        @if (gradeFor(editor.assessment.id, editor.student.id)) {
+          <label class="full required"
+            ><span>{{ text('Motif de la correction', 'سبب التعديل') }} *</span
+            ><input [(ngModel)]="gradeReason" placeholder="Copie revérifiée…"
+          /></label>
+        }
+      </div>
+      <footer>
+        <button mat-stroked-button type="button" (click)="closeGradeEditor()">
+          {{ text('Annuler', 'إلغاء') }}</button
+        ><button
+          mat-flat-button
+          type="button"
+          [disabled]="busy() || (gradeStatus === 'GRADED' && gradeScore === null)"
+          (click)="saveGrade()"
+        >
+          {{ text('Enregistrer', 'حفظ') }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
+@if (history(); as entries) {
+  <div class="modal-backdrop">
+    <section class="modal history-modal" role="dialog" aria-modal="true">
+      <header>
+        <div>
+          <p class="eyebrow">{{ text('Traçabilité immuable', 'تتبع غير قابل للتغيير') }}</p>
+          <h2>{{ historyTitle() }}</h2>
+        </div>
+        <button type="button" (click)="history.set(null)" aria-label="Fermer">×</button>
+      </header>
+      <div class="timeline">
+        @for (entry of entries; track entry.id; let first = $first) {
+          <article>
+            <span class="timeline-dot"></span>
+            <div>
+              <header>
+                <strong>{{
+                  first
+                    ? text('Note créée', 'تم إنشاء النقطة')
+                    : text('Note corrigée', 'تم تعديل النقطة')
+                }}</strong
+                ><time>{{ entry.changedAt.slice(0, 16).replace('T', ' ') }}</time>
+              </header>
+              <p>
+                <b>{{ entry.previousScore ?? '—' }}</b
+                ><span>→</span><b>{{ entry.newScore ?? entry.newStatus }}</b>
+              </p>
+              @if (entry.reason) {
+                <blockquote>{{ entry.reason }}</blockquote>
+              }
+              <small>{{ entry.actorName }}</small>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  </div>
+}
+
+@if (publicationEditor(); as report) {
+  <div class="modal-backdrop">
+    <section class="modal publication-modal" role="dialog" aria-modal="true">
+      <header>
+        <div>
+          <p class="eyebrow">
+            {{ text('Bulletin officiel', 'البيان الرسمي') }} · v{{ report.versionNumber }}
+          </p>
+          <h2>{{ report.studentName }}</h2>
+          <span>
+            {{ statusLabel(report.status) }} · {{ formatAverage(report.overallAverage) }}/20
+          </span>
+        </div>
+        <button type="button" (click)="closePublication()" aria-label="Fermer">×</button>
+      </header>
+
+      @if (report.status === 'CALCULATED') {
+        <div class="publication-callout">
+          <strong>{{ text('Publication immuable', 'نشر غير قابل للتغيير') }}</strong>
+          <p>
+            {{
+              text(
+                'Vérifiez l’aperçu. Après publication, ce PDF restera intact ; une correction créera la version suivante.',
+                'تحقق من المعاينة. بعد النشر سيبقى ملف PDF كما هو، وسيؤدي أي تصحيح إلى إنشاء النسخة التالية.'
+              )
+            }}
+          </p>
+        </div>
+        <div class="form-grid two">
+          <label>
+            <span>{{ text('Langue du document', 'لغة الوثيقة') }}</span>
+            <select [(ngModel)]="publicationLanguage">
+              <option value="FR">Français</option>
+              <option value="AR">العربية</option>
+              <option value="BILINGUAL">FR + AR</option>
+            </select>
+          </label>
+          <label>
+            <span>{{ text('Signataire', 'الموقع') }}</span>
+            <input [(ngModel)]="publicationSigner" />
+          </label>
+          <label>
+            <span>{{ text('Fonction', 'الصفة') }}</span>
+            <input [(ngModel)]="publicationSignerTitle" />
+          </label>
+          <label>
+            <span>{{ text('Note de publication', 'ملاحظة النشر') }}</span>
+            <input [(ngModel)]="publicationNote" />
+          </label>
+        </div>
+      } @else {
+        <div class="document-proof">
+          <div>
+            <small>{{ text('Langue', 'اللغة') }}</small>
+            <strong>{{ languageLabel(report.languageMode) }}</strong>
+          </div>
+          <div>
+            <small>SHA-256</small>
+            <strong title="{{ report.pdfSha256 }}">{{ shortHash(report.pdfSha256) }}</strong>
+          </div>
+          <div>
+            <small>{{ text('Signataire', 'الموقع') }}</small>
+            <strong>{{ report.signedByName }}</strong>
+          </div>
+        </div>
+      }
+
+      <div class="version-history">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="eyebrow">{{ text('Traçabilité', 'التتبع') }}</p>
+            <h3>{{ text('Historique des versions', 'سجل النسخ') }}</h3>
+          </div>
+        </div>
+        @for (version of reportVersions(); track version.id) {
+          <article [class.current-version]="version.id === report.id">
+            <span class="version-number">v{{ version.versionNumber }}</span>
+            <p>
+              <strong>{{ statusLabel(version.status) }}</strong>
+              <small>
+                @if (version.publishedAt) {
+                  {{ version.publishedAt.slice(0, 16).replace('T', ' ') }} ·
+                  {{ languageLabel(version.languageMode) }}
+                } @else {
+                  {{ text('Prête à publier', 'جاهزة للنشر') }}
+                }
+              </small>
+            </p>
+            @if (version.status === 'PUBLISHED') {
+              <button type="button" class="document-link" (click)="downloadReportCard(version)">
+                {{ text('Télécharger', 'تنزيل') }}
+              </button>
+            }
+          </article>
+        }
+      </div>
+
+      <footer>
+        <button mat-stroked-button type="button" (click)="closePublication()">
+          {{ text('Fermer', 'إغلاق') }}
+        </button>
+        @if (report.status === 'CALCULATED') {
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="busy() || !publicationSigner"
+            (click)="previewReportCard()"
+          >
+            {{ text('Ouvrir l’aperçu PDF', 'فتح معاينة PDF') }}
+          </button>
+          <button
+            mat-flat-button
+            type="button"
+            [disabled]="busy() || !publicationSigner || !auth.hasPermission('report-card.publish')"
+            (click)="publishReportCard()"
+          >
+            {{ text('Publier cette version', 'نشر هذه النسخة') }}
+          </button>
+        } @else {
+          <button mat-flat-button type="button" (click)="downloadReportCard(report)">
+            {{ text('Télécharger le PDF', 'تنزيل ملف PDF') }}
+          </button>
+        }
+      </footer>
+    </section>
+  </div>
+}

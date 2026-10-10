@@ -1,0 +1,270 @@
+<main class="import-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ i18n.translate('imports.eyebrow') }}</p>
+      <h1>{{ i18n.translate('imports.title') }}</h1>
+      <p>{{ i18n.translate('imports.subtitle') }}</p>
+    </div>
+    <span class="atomic-badge">{{ i18n.translate('imports.atomic') }}</span>
+  </header>
+
+  <ol class="steps" aria-label="Progression de l'import">
+    @for (
+      label of [
+        'imports.step.upload',
+        'imports.step.mapping',
+        'imports.step.validation',
+        'imports.step.preview',
+        'imports.step.import',
+      ];
+      track label;
+      let index = $index
+    ) {
+      <li [class.active]="step() === index + 1" [class.done]="step() > index + 1">
+        <span>{{ index + 1 }}</span>
+        <strong>{{ i18n.translate($any(label)) }}</strong>
+      </li>
+    }
+  </ol>
+
+  @if (failed()) {
+    <div class="alert error">
+      {{ job()?.errorSummary ?? i18n.translate('imports.error') }}
+    </div>
+  }
+
+  <section class="wizard-card">
+    @if (step() === 1) {
+      <div class="section-heading">
+        <div>
+          <small>{{ i18n.translate('imports.step.upload') }}</small>
+          <h2>{{ i18n.translate('imports.chooseType') }}</h2>
+        </div>
+      </div>
+      <div class="type-grid">
+        @for (choice of types; track choice.type) {
+          <button
+            type="button"
+            class="type-card"
+            [class.selected]="selectedType() === choice.type"
+            (click)="chooseType(choice.type)"
+          >
+            <span>{{ choice.icon }}</span>
+            <strong>{{ i18n.translate(choice.label) }}</strong>
+          </button>
+        }
+      </div>
+      <div class="upload-zone">
+        <div>
+          <strong>{{ i18n.translate('imports.fileTitle') }}</strong>
+          <p>{{ i18n.translate('imports.fileHelp') }}</p>
+        </div>
+        <label class="file-picker">
+          <input type="file" accept=".csv,.xlsx" (change)="chooseFile($event)" />
+          <span>{{ selectedFile()?.name ?? i18n.translate('imports.chooseFile') }}</span>
+        </label>
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="!selectedFile() || busy()"
+          (click)="upload()"
+        >
+          {{ i18n.translate('imports.upload') }}
+        </button>
+      </div>
+      <div class="template-callout">
+        <div>
+          <strong>{{ i18n.translate('imports.templateTitle') }}</strong>
+          <p>{{ i18n.translate('imports.templateHelp') }}</p>
+        </div>
+        <button mat-stroked-button type="button" (click)="download(selectedType())">
+          {{ i18n.translate('imports.downloadTemplate') }}
+        </button>
+      </div>
+    } @else if (step() === 2 && job(); as currentJob) {
+      <div class="section-heading">
+        <div>
+          <small>{{ i18n.translate('imports.step.mapping') }}</small>
+          <h2>{{ i18n.translate('imports.mappingTitle') }}</h2>
+          <p>
+            {{ currentJob.fileName }} · {{ currentJob.totalRows }}
+            {{ i18n.translate('imports.rows') }}
+          </p>
+        </div>
+        <button mat-button type="button" (click)="restart()">
+          {{ i18n.translate('common.cancel') }}
+        </button>
+      </div>
+      <div class="mapping-table">
+        <div class="mapping-head">
+          <span>{{ i18n.translate('imports.targetField') }}</span>
+          <span>{{ i18n.translate('imports.sourceColumn') }}</span>
+          <span>{{ i18n.translate('imports.example') }}</span>
+        </div>
+        @for (field of currentJob.fields; track field.key) {
+          <div class="mapping-row">
+            <span class="field-label">
+              {{ field.label }}
+              @if (field.required) {
+                <b>*</b>
+              }
+              <small>{{ field.key }}</small>
+            </span>
+            <select [value]="mapping()[field.key]" (change)="mapColumn(field.key, $event)">
+              <option value="">{{ i18n.translate('imports.notMapped') }}</option>
+              @for (header of currentJob.headers; track header) {
+                <option [value]="header">{{ header }}</option>
+              }
+            </select>
+            <code>{{ field.example }}</code>
+          </div>
+        }
+      </div>
+      <div class="actions">
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="!mappingComplete() || busy()"
+          (click)="saveMapping()"
+        >
+          {{ i18n.translate('imports.confirmMapping') }}
+        </button>
+      </div>
+    } @else if (step() === 3 && job(); as currentJob) {
+      <div class="validation-panel">
+        <span class="validation-icon">✓</span>
+        <small>{{ i18n.translate('imports.step.validation') }}</small>
+        <h2>{{ i18n.translate('imports.validationTitle') }}</h2>
+        <p>{{ i18n.translate('imports.validationHelp') }}</p>
+        <dl>
+          <div>
+            <dt>{{ i18n.translate('imports.file') }}</dt>
+            <dd>{{ currentJob.fileName }}</dd>
+          </div>
+          <div>
+            <dt>{{ i18n.translate('imports.rows') }}</dt>
+            <dd>{{ currentJob.totalRows }}</dd>
+          </div>
+          <div>
+            <dt>{{ i18n.translate('imports.columns') }}</dt>
+            <dd>{{ mappedCount() }}</dd>
+          </div>
+        </dl>
+        <button mat-flat-button type="button" [disabled]="busy()" (click)="validate()">
+          {{ i18n.translate('imports.runValidation') }}
+        </button>
+      </div>
+    } @else if (step() === 4 && job(); as currentJob) {
+      <div class="section-heading">
+        <div>
+          <small>{{ i18n.translate('imports.step.preview') }}</small>
+          <h2>{{ i18n.translate('imports.previewTitle') }}</h2>
+        </div>
+        <div class="validation-counts">
+          <span class="valid"
+            >{{ currentJob.validRows }} {{ i18n.translate('imports.valid') }}</span
+          >
+          <span [class.invalid]="currentJob.invalidRows > 0"
+            >{{ currentJob.invalidRows }} {{ i18n.translate('imports.invalid') }}</span
+          >
+        </div>
+      </div>
+      @if (preview(); as data) {
+        <div class="preview-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>{{ i18n.translate('imports.status') }}</th>
+                <th>{{ i18n.translate('imports.data') }}</th>
+                <th>{{ i18n.translate('imports.issues') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of data.rows; track row.rowNumber) {
+                <tr [class.invalid-row]="row.status === 'INVALID'">
+                  <td>{{ row.rowNumber }}</td>
+                  <td>
+                    <span class="row-status">{{ row.status }}</span>
+                  </td>
+                  <td>
+                    <div class="value-list">
+                      @for (item of row.values | keyvalue; track item.key) {
+                        <span
+                          ><b>{{ item.key }}</b
+                          >{{ item.value || '—' }}</span
+                        >
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <ul>
+                      @for (issue of row.errors; track issue.field + issue.message) {
+                        <li>
+                          <b>{{ issue.field }}</b> {{ issue.message }}
+                        </li>
+                      } @empty {
+                        <li class="no-issue">✓</li>
+                      }
+                    </ul>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      <div class="actions split">
+        <button mat-stroked-button type="button" (click)="restart()">
+          {{ i18n.translate('imports.newImport') }}
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="currentJob.invalidRows > 0 || busy()"
+          (click)="execute()"
+        >
+          {{ i18n.translate('imports.execute') }}
+        </button>
+      </div>
+    } @else if (step() === 5 && job(); as currentJob) {
+      <div class="success-panel">
+        <span>✓</span>
+        <small>{{ i18n.translate('imports.step.import') }}</small>
+        <h2>{{ i18n.translate('imports.successTitle') }}</h2>
+        <p>{{ currentJob.importedRows }} {{ i18n.translate('imports.successRows') }}</p>
+        <button mat-flat-button type="button" (click)="restart()">
+          {{ i18n.translate('imports.newImport') }}
+        </button>
+      </div>
+    }
+  </section>
+
+  <section class="history-card">
+    <div class="section-heading">
+      <div>
+        <small>{{ i18n.translate('imports.history') }}</small>
+        <h2>{{ i18n.translate('imports.recent') }}</h2>
+      </div>
+    </div>
+    <div class="history-list">
+      @for (item of history(); track item.id) {
+        <button type="button" (click)="resume(item)">
+          <span class="file-icon">{{ item.fileFormat }}</span>
+          <span
+            ><strong>{{ item.typeLabel }}</strong
+            ><small
+              >{{ item.fileName }} · {{ item.totalRows }}
+              {{ i18n.translate('imports.rows') }}</small
+            ></span
+          >
+          <em [class.failed]="item.status === 'FAILED'">{{
+            i18n.translate(statusLabel(item.status))
+          }}</em>
+        </button>
+      } @empty {
+        <p>{{ i18n.translate('imports.noHistory') }}</p>
+      }
+    </div>
+  </section>
+</main>

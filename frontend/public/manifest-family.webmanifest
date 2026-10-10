@@ -1,0 +1,28 @@
+{
+  "name": "SchoolZ — Espace famille",
+  "short_name": "SchoolZ Famille",
+  "description": "La vie scolaire de vos enfants dans un espace familial sécurisé.",
+  "theme_color": "#1d4ed8",
+  "background_color": "#eff6ff",
+  "display": "standalone",
+  "scope": "/",
+  "id": "/family",
+  "start_url": "/family?source=pwa",
+  "lang": "fr-MA",
+  "dir": "auto",
+  "categories": ["education", "productivity"],
+  "shortcuts": [
+    { "name": "Mes enfants", "short_name": "Famille", "url": "/family?source=pwa" },
+    { "name": "Devoirs", "short_name": "Devoirs", "url": "/homework?source=pwa" },
+    { "name": "Messages", "short_name": "Messages", "url": "/messages?source=pwa" },
+    { "name": "Paiements", "short_name": "Finance", "url": "/finance?source=pwa" }
+  ],
+  "icons": [
+    {
+      "src": "icons/schoolz.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

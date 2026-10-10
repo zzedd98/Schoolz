@@ -1,0 +1,403 @@
+<main class="childcare-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ text('Petite enfance', 'الطفولة المبكرة') }}</p>
+      <h1>{{ text('Journal éducateur', 'سجل المربي') }}</h1>
+      <p>
+        {{
+          text(
+            'Une action, un instant, un Daily Report fiable.',
+            'إجراء واحد ولحظة واحدة وتقرير يومي موثوق.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="filters">
+      <label>
+        {{ text('Date', 'التاريخ') }}
+        <input type="date" [value]="date()" (change)="selectDate($event)" />
+      </label>
+      <label>
+        {{ text('Groupe', 'المجموعة') }}
+        <select [value]="selectedGroup()" (change)="selectGroup($event)">
+          <option value="">{{ text('Tous les groupes', 'كل المجموعات') }}</option>
+          @for (group of dashboard()?.groups ?? []; track group.id) {
+            <option [value]="group.id">
+              {{ group.name }} · {{ group.childCount }}/{{ group.capacity }}
+            </option>
+          }
+        </select>
+      </label>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="alert error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="alert success" role="status">{{ message() }}</p>
+  }
+
+  <section class="metrics" aria-label="Indicateurs du jour">
+    <article>
+      <span>{{ text('Enfants', 'الأطفال') }}</span
+      ><strong>{{ dashboard()?.children?.length ?? 0 }}</strong>
+    </article>
+    <article class="present">
+      <span>{{ text('Présents', 'الحاضرون') }}</span
+      ><strong>{{ presentCount() }}</strong>
+    </article>
+    <article>
+      <span>{{ text('Rapports publiés', 'التقارير المنشورة') }}</span
+      ><strong>{{ publishedCount() }}</strong>
+    </article>
+    <article>
+      <span>{{ text('Éducateur référent', 'المربي المرجعي') }}</span
+      ><b>{{ dashboard()?.groups?.[0]?.referenceEducator ?? '—' }}</b>
+    </article>
+  </section>
+
+  @if (dashboard()?.policy; as policy) {
+    <aside class="policy" [class.enabled]="policy.medicationRecordingEnabled">
+      <span aria-hidden="true">{{ policy.medicationRecordingEnabled ? '✓' : '!' }}</span>
+      <div>
+        <strong>{{ text('Politique médicaments', 'سياسة الأدوية') }}</strong>
+        <p>
+          {{
+            policy.medicationRecordingEnabled
+              ? text(
+                  'Saisie autorisée selon la politique et l’autorisation parentale.',
+                  'التسجيل مسموح حسب السياسة وموافقة الوالدين.'
+                )
+              : text('Saisie désactivée par l’établissement.', 'التسجيل معطل من طرف المؤسسة.')
+          }}
+          {{ policy.instructions }}
+        </p>
+      </div>
+    </aside>
+  }
+
+  @if (busy() && !dashboard()) {
+    <p class="empty">{{ text('Chargement du groupe…', 'جاري تحميل المجموعة…') }}</p>
+  } @else if (dashboard()?.children?.length === 0) {
+    <p class="empty">
+      {{ text('Aucun enfant dans ce groupe.', 'لا يوجد أطفال في هذه المجموعة.') }}
+    </p>
+  }
+
+  <section class="children-grid">
+    @for (child of dashboard()?.children ?? []; track child.studentId) {
+      <article class="child-card" [class.locked]="isLocked(child)">
+        <header>
+          <div class="avatar">{{ child.studentName.slice(0, 1) }}</div>
+          <div>
+            <h2>{{ child.studentName }}</h2>
+            <p>
+              {{ child.groupName }} · {{ child.expectedArrivalTime.slice(0, 5) }}—{{
+                child.expectedDepartureTime.slice(0, 5)
+              }}
+            </p>
+          </div>
+          <span class="status" [attr.data-status]="child.dailyLog.status">
+            {{
+              child.dailyLog.status === 'PUBLISHED'
+                ? text('Publié', 'منشور')
+                : child.dailyLog.status === 'DRAFT'
+                  ? text('En cours', 'قيد الإنجاز')
+                  : text('Attendu', 'منتظر')
+            }}
+          </span>
+        </header>
+
+        <section class="day-summary">
+          <div>
+            <span>{{ text('Arrivée', 'الوصول') }}</span
+            ><strong>{{ time(child.dailyLog.arrivalAt) }}</strong>
+          </div>
+          <div>
+            <span>{{ text('Repas', 'الوجبة') }}</span
+            ><strong>{{ events(child, 'MEAL').length ? '✓' : '—' }}</strong>
+          </div>
+          <div>
+            <span>{{ text('Sieste', 'القيلولة') }}</span
+            ><strong>
+              @if (events(child, 'SLEEP')[0]; as sleep) {
+                {{ time(sleep.occurredAt) }} → {{ time(sleep.endedAt) }}
+              } @else {
+                —
+              }
+            </strong>
+          </div>
+          <div>
+            <span>{{ text('Change', 'الحفاض') }}</span
+            ><strong>
+              @for (event of events(child, 'DIAPER'); track event.id; let last = $last) {
+                {{ time(event.occurredAt) }}{{ last ? '' : ' / ' }}
+              } @empty {
+                —
+              }
+            </strong>
+          </div>
+        </section>
+
+        @if (events(child, 'ACTIVITY').length || events(child, 'OBSERVATION').length) {
+          <section class="highlights">
+            @for (event of events(child, 'ACTIVITY'); track event.id) {
+              <p>
+                <b>{{ text('Activité', 'النشاط') }}</b> {{ event.label }}
+              </p>
+            }
+            @for (event of events(child, 'OBSERVATION'); track event.id) {
+              <p>
+                <b>{{ text('Observation', 'ملاحظة') }}</b> {{ event.label || event.notes }}
+              </p>
+            }
+          </section>
+        }
+
+        <div class="quick-actions" aria-label="Actions rapides">
+          <button
+            type="button"
+            class="arrival"
+            [disabled]="busy() || !!child.dailyLog.arrivalAt || isLocked(child)"
+            (click)="quickArrival(child)"
+          >
+            + {{ text('Arrivée', 'وصول') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="quickEvent(child, 'MEAL')"
+          >
+            ✓ {{ text('Repas', 'وجبة') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="quickEvent(child, 'BOTTLE')"
+          >
+            + {{ text('Biberon', 'رضاعة') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="openEditor(child, 'SLEEP')"
+          >
+            + {{ text('Sieste', 'قيلولة') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="quickEvent(child, 'DIAPER')"
+          >
+            + {{ text('Change', 'حفاض') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="quickEvent(child, 'TOILET')"
+          >
+            + {{ text('Toilette', 'مرحاض') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="openEditor(child, 'ACTIVITY')"
+          >
+            + {{ text('Activité', 'نشاط') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="openEditor(child, 'MOOD')"
+          >
+            + {{ text('Humeur', 'مزاج') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="openEditor(child, 'OBSERVATION')"
+          >
+            + {{ text('Observation', 'ملاحظة') }}
+          </button>
+          <button
+            type="button"
+            class="caution"
+            [disabled]="busy() || isLocked(child)"
+            (click)="openEditor(child, 'INCIDENT')"
+          >
+            + {{ text('Incident', 'حادث') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="busy() || isLocked(child)"
+            (click)="openEditor(child, 'TEMPERATURE')"
+          >
+            + {{ text('Température', 'حرارة') }}
+          </button>
+          <button
+            type="button"
+            [disabled]="
+              busy() || isLocked(child) || !dashboard()?.policy?.medicationRecordingEnabled
+            "
+            (click)="openEditor(child, 'MEDICATION')"
+          >
+            + {{ text('Médicament', 'دواء') }}
+          </button>
+        </div>
+
+        <footer>
+          <button
+            mat-button
+            type="button"
+            [disabled]="busy() || !child.dailyLog.arrivalAt || isLocked(child)"
+            (click)="openEditor(child, 'DEPARTURE')"
+          >
+            {{ text('Enregistrer le départ', 'تسجيل المغادرة') }}
+          </button>
+          <button
+            mat-flat-button
+            type="button"
+            [disabled]="busy() || !child.dailyLog.arrivalAt || isLocked(child)"
+            (click)="openEditor(child, 'PUBLISH')"
+          >
+            {{ text('Publier le Daily Report', 'نشر التقرير اليومي') }}
+          </button>
+        </footer>
+      </article>
+    }
+  </section>
+</main>
+
+@if (activeStudent(); as child) {
+  <button
+    class="editor-backdrop"
+    type="button"
+    (click)="closeEditor()"
+    [attr.aria-label]="text('Fermer', 'إغلاق')"
+  ></button>
+  <section class="editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+    <header>
+      <div>
+        <p>{{ child.studentName }}</p>
+        <h2 id="editor-title">{{ activeAction() }}</h2>
+      </div>
+      <button type="button" (click)="closeEditor()" aria-label="Fermer">×</button>
+    </header>
+
+    @if (activeAction() === 'SLEEP') {
+      <div class="field-row">
+        <label>{{ text('Début', 'البداية') }}<input type="time" [(ngModel)]="formStart" /></label
+        ><label>{{ text('Fin', 'النهاية') }}<input type="time" [(ngModel)]="formEnd" /></label>
+      </div>
+    } @else if (activeAction() === 'ACTIVITY' || activeAction() === 'OBSERVATION') {
+      <label
+        >{{
+          activeAction() === 'ACTIVITY'
+            ? text('Activité', 'النشاط')
+            : text('Observation', 'ملاحظة')
+        }}<input
+          [(ngModel)]="formLabel"
+          [placeholder]="activeAction() === 'ACTIVITY' ? 'Peinture' : 'Très bonne journée'"
+      /></label>
+    } @else if (activeAction() === 'MOOD') {
+      <label
+        >{{ text('Humeur', 'المزاج')
+        }}<select [(ngModel)]="formMood">
+          <option value="HAPPY">😊 {{ text('Joyeux', 'سعيد') }}</option>
+          <option value="CALM">😌 {{ text('Calme', 'هادئ') }}</option>
+          <option value="TIRED">😴 {{ text('Fatigué', 'متعب') }}</option>
+          <option value="SENSITIVE">🥺 {{ text('Sensible', 'حساس') }}</option>
+          <option value="UPSET">😟 {{ text('Contrarié', 'منزعج') }}</option>
+        </select></label
+      >
+    } @else if (activeAction() === 'INCIDENT') {
+      <label
+        >{{ text('Incident factuel', 'وصف واقعي للحادث') }}<input [(ngModel)]="formLabel"
+      /></label>
+      <label
+        >{{ text('Gravité observée', 'الخطورة الملاحظة')
+        }}<select [(ngModel)]="formSeverity">
+          <option value="LOW">{{ text('Faible', 'منخفضة') }}</option>
+          <option value="MEDIUM">{{ text('Moyenne', 'متوسطة') }}</option>
+          <option value="HIGH">{{ text('Élevée', 'مرتفعة') }}</option>
+        </select></label
+      >
+      <p class="medical-note">
+        {{
+          text(
+            'Décrire uniquement les faits observés. Aucun diagnostic médical.',
+            'صف الوقائع الملاحظة فقط، دون أي تشخيص طبي.'
+          )
+        }}
+      </p>
+    } @else if (activeAction() === 'TEMPERATURE') {
+      <label
+        >{{ text('Mesure manuelle (°C)', 'قياس يدوي (°م)')
+        }}<input type="number" min="30" max="45" step="0.1" [(ngModel)]="formTemperature"
+      /></label>
+      <p class="medical-note">
+        {{ text('Cette mesure ne constitue pas un diagnostic.', 'هذا القياس لا يشكل تشخيصاً.') }}
+      </p>
+    } @else if (activeAction() === 'MEDICATION') {
+      <label>{{ text('Médicament', 'الدواء') }}<input [(ngModel)]="formMedication" /></label>
+      <label>{{ text('Dose', 'الجرعة') }}<input [(ngModel)]="formDose" /></label>
+      <label
+        >{{ text('Référence autorisation', 'مرجع الموافقة')
+        }}<input [(ngModel)]="formAuthorization"
+      /></label>
+    } @else if (activeAction() === 'DEPARTURE') {
+      <label
+        >{{ text('Personne autorisée', 'الشخص المصرح له')
+        }}<select [(ngModel)]="formPickup">
+          <option value="">—</option>
+          @for (person of child.pickupPeople; track person.id) {
+            @if (person.authorizationStatus === 'AUTHORIZED') {
+              <option [value]="person.id">
+                {{ person.displayName }} · {{ person.relationshipType }}
+              </option>
+            }
+          }
+        </select></label
+      >
+      @for (person of child.pickupPeople; track person.id) {
+        @if (person.authorizationStatus === 'PROHIBITED') {
+          <p class="prohibited">
+            ⛔ {{ person.displayName }} · {{ text('non autorisé', 'غير مصرح له') }}
+          </p>
+        }
+      }
+    } @else if (activeAction() === 'PUBLISH') {
+      <label
+        >{{ text('Synthèse transmise au parent', 'الملخص المرسل للوالدين')
+        }}<textarea rows="4" [(ngModel)]="formNotes"></textarea>
+      </label>
+      <p class="medical-note">
+        {{
+          text(
+            'Après publication, le journal devient non modifiable.',
+            'بعد النشر يصبح السجل غير قابل للتعديل.'
+          )
+        }}
+      </p>
+    }
+
+    @if (
+      activeAction() !== 'DEPARTURE' &&
+      activeAction() !== 'PUBLISH' &&
+      activeAction() !== 'SLEEP' &&
+      activeAction() !== 'ACTIVITY' &&
+      activeAction() !== 'OBSERVATION' &&
+      activeAction() !== 'MOOD' &&
+      activeAction() !== 'TEMPERATURE' &&
+      activeAction() !== 'MEDICATION'
+    ) {
+      <label
+        >{{ text('Notes', 'ملاحظات') }}<textarea rows="3" [(ngModel)]="formNotes"></textarea>
+      </label>
+    }
+    <button mat-flat-button type="button" [disabled]="busy()" (click)="submitEditor()">
+      {{ text('Enregistrer', 'حفظ') }}
+    </button>
+  </section>
+}

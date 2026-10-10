@@ -1,0 +1,303 @@
+<main class="portal-page">
+  <header class="portal-head">
+    <a class="brand" routerLink="/family"><span>SZ</span> SchoolZ</a>
+    <div class="head-actions">
+      <a routerLink="/attendance">{{ text('Assiduité', 'المواظبة') }}</a>
+      <a routerLink="/childcare">{{ text('Daily Report', 'التقرير اليومي') }}</a>
+      <a routerLink="/admissions">{{ text('Retour aux admissions', 'العودة إلى القبول') }}</a>
+      <button type="button" (click)="i18n.setLocale(i18n.locale() === 'fr-MA' ? 'ar-MA' : 'fr-MA')">
+        {{ i18n.locale() === 'fr-MA' ? 'العربية' : 'FR' }}
+      </button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow">{{ text('Inscription & réinscription', 'التسجيل وإعادة التسجيل') }}</p>
+      <h1>{{ text('Votre rentrée, étape par étape.', 'دخول مدرسي واضح، خطوة بخطوة.') }}</h1>
+      <p>
+        {{
+          text(
+            'Confirmez les informations de votre famille, choisissez vos services et signez sans vous déplacer.',
+            'أكد معلومات أسرتك، واختر الخدمات ووقّع دون الحاجة إلى التنقل.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="hero-mark">
+      <strong>8</strong><span>{{ text('étapes guidées', 'مراحل موجهة') }}</span>
+    </div>
+  </section>
+
+  @if (error()) {
+    <div class="alert error" role="alert">
+      {{ error() }} <a routerLink="/admissions">Admissions</a>
+    </div>
+  }
+  @if (message()) {
+    <div class="alert success" role="status">✓ {{ message() }}</div>
+  }
+
+  @if (startableApplications().length) {
+    <section class="start-card">
+      <div>
+        <span>{{ text('Offre acceptée', 'تم قبول العرض') }}</span>
+        <strong>{{ text('Une inscription est prête à démarrer', 'التسجيل جاهز للبدء') }}</strong>
+      </div>
+      @for (application of startableApplications(); track application.id) {
+        <button mat-flat-button type="button" [disabled]="busy()" (click)="start(application.id)">
+          {{ text('Inscrire', 'تسجيل') }} {{ application.applicantName }}
+        </button>
+      }
+    </section>
+  }
+
+  @if (workflows().length > 1) {
+    <nav class="workflow-tabs" aria-label="Parcours">
+      @for (workflow of workflows(); track workflow.id) {
+        <button
+          type="button"
+          [class.active]="selectedId() === workflow.id"
+          (click)="select(workflow)"
+        >
+          {{
+            workflow.workflowType === 'INITIAL'
+              ? text('Inscription', 'تسجيل')
+              : text('Réinscription', 'إعادة تسجيل')
+          }}
+          <small>{{ workflow.status }}</small>
+        </button>
+      }
+    </nav>
+  }
+
+  @if (selected(); as workflow) {
+    <section class="journey">
+      <ol class="stepper">
+        @for (step of steps; track step; let index = $index) {
+          <li
+            [class.current]="workflow.currentStep === step"
+            [class.done]="stepDone(workflow, step) || workflow.status === 'ACTIVE'"
+          >
+            <span>{{
+              stepDone(workflow, step) || workflow.status === 'ACTIVE' ? '✓' : index + 1
+            }}</span>
+            <small>{{ stepLabel(step) }}</small>
+          </li>
+        }
+      </ol>
+
+      <article class="step-card">
+        @switch (workflow.currentStep) {
+          @case ('CONTRACT') {
+            <p class="eyebrow">01 · {{ text('Contrat', 'العقد') }}</p>
+            <h2>{{ workflow.contract.title }}</h2>
+            <div class="contract">{{ workflow.contract.body }}</div>
+            <label class="consent"
+              ><input type="checkbox" #contractConsent />
+              {{ text('J’ai lu et j’accepte ce contrat.', 'قرأت هذا العقد وأوافق عليه.') }}</label
+            >
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="busy() || !contractConsent.checked"
+              (click)="acceptContract(workflow)"
+            >
+              {{ text('Accepter et continuer', 'الموافقة والمتابعة') }}
+            </button>
+          }
+          @case ('FAMILY_INFORMATION') {
+            <p class="eyebrow">02 · {{ text('Informations famille', 'معلومات الأسرة') }}</p>
+            <h2>{{ text('Confirmez ou modifiez vos informations', 'أكد معلوماتك أو عدّلها') }}</h2>
+            <form class="form-grid" [formGroup]="familyForm" (ngSubmit)="confirmFamily(workflow)">
+              <label
+                >{{ text('Prénom responsable', 'اسم ولي الأمر')
+                }}<input formControlName="guardianFirstName"
+              /></label>
+              <label
+                >{{ text('Nom responsable', 'نسب ولي الأمر')
+                }}<input formControlName="guardianLastName"
+              /></label>
+              <label
+                >{{ text('E-mail', 'البريد الإلكتروني')
+                }}<input type="email" formControlName="email"
+              /></label>
+              <label>{{ text('Téléphone', 'الهاتف') }}<input formControlName="phone" /></label>
+              <label
+                >{{ text('Lien familial', 'صلة القرابة')
+                }}<select formControlName="relationship">
+                  <option value="PARENT">Parent</option>
+                  <option value="MOTHER">Mère</option>
+                  <option value="FATHER">Père</option>
+                  <option value="GUARDIAN">Tuteur</option>
+                </select></label
+              >
+              <label class="wide"
+                >{{ text('Adresse', 'العنوان') }}<input formControlName="addressLine1"
+              /></label>
+              <label>{{ text('Ville', 'المدينة') }}<input formControlName="city" /></label>
+              <label>{{ text('Région', 'الجهة') }}<input formControlName="region" /></label>
+              <button
+                class="wide"
+                mat-flat-button
+                type="submit"
+                [disabled]="familyForm.invalid || busy()"
+              >
+                {{ text('Confirmer la famille', 'تأكيد الأسرة') }}
+              </button>
+            </form>
+          }
+          @case ('SERVICES') {
+            <p class="eyebrow">03 · {{ text('Services & paiement', 'الخدمات والدفع') }}</p>
+            <h2>{{ text('Composez les services de l’année', 'اختر خدمات السنة') }}</h2>
+            <form
+              class="service-form"
+              [formGroup]="servicesForm"
+              (ngSubmit)="confirmServices(workflow)"
+            >
+              <label class="choice"
+                ><input type="checkbox" formControlName="transportSelected" /><span
+                  ><strong>{{ text('Transport scolaire', 'النقل المدرسي') }}</strong
+                  ><small>{{ text('Choisir un circuit', 'اختيار المسار') }}</small></span
+                ></label
+              >
+              @if (servicesForm.controls.transportSelected.value) {
+                <label
+                  >{{ text('Circuit souhaité', 'المسار المطلوب')
+                  }}<input formControlName="transportRoute" placeholder="Casa Centre"
+                /></label>
+              }
+              <label class="choice"
+                ><input type="checkbox" formControlName="cafeteriaSelected" /><span
+                  ><strong>{{ text('Cantine', 'المطعم المدرسي') }}</strong
+                  ><small>{{
+                    text('Repas les jours de classe', 'وجبات أيام الدراسة')
+                  }}</small></span
+                ></label
+              >
+              <label
+                >{{ text('Activités (séparées par une virgule)', 'الأنشطة (مفصولة بفاصلة)')
+                }}<input formControlName="activities" placeholder="Robotique, Natation"
+              /></label>
+              <label
+                >{{ text('Plan de paiement', 'خطة الدفع')
+                }}<select formControlName="paymentPlan">
+                  <option value="MONTHLY">{{ text('Mensuel', 'شهري') }}</option>
+                  <option value="QUARTERLY">{{ text('Trimestriel', 'فصلي') }}</option>
+                  <option value="ANNUAL">{{ text('Annuel', 'سنوي') }}</option>
+                </select></label
+              >
+              <button mat-flat-button type="submit" [disabled]="busy()">
+                {{ text('Valider les services', 'تأكيد الخدمات') }}
+              </button>
+            </form>
+          }
+          @case ('DOCUMENTS') {
+            <p class="eyebrow">04 · {{ text('Documents', 'الوثائق') }}</p>
+            <h2>
+              {{ text('Ajoutez la copie d’identité du responsable', 'أضف نسخة هوية ولي الأمر') }}
+            </h2>
+            <div class="upload-zone">
+              <span>PDF · JPEG · PNG · 5 Mo max</span>
+              <label
+                ><input
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png"
+                  (change)="upload(workflow, $event)"
+                /><b>{{ text('Choisir le document', 'اختيار الوثيقة') }}</b></label
+              >
+            </div>
+          }
+          @case ('SIGNATURE') {
+            <p class="eyebrow">05 · {{ text('Signature électronique', 'التوقيع الإلكتروني') }}</p>
+            <h2>{{ text('Signez le dossier', 'وقّع الملف') }}</h2>
+            <form class="signature" [formGroup]="signatureForm" (ngSubmit)="sign(workflow)">
+              <label
+                >{{ text('Nom complet du signataire', 'الاسم الكامل للموقع')
+                }}<input formControlName="signerName"
+              /></label>
+              <label class="consent"
+                ><input type="checkbox" formControlName="accepted" />
+                {{
+                  text('Je certifie l’exactitude des informations.', 'أشهد بصحة المعلومات.')
+                }}</label
+              >
+              <button mat-flat-button type="submit" [disabled]="signatureForm.invalid || busy()">
+                {{ text('Signer et continuer', 'التوقيع والمتابعة') }}
+              </button>
+            </form>
+          }
+          @case ('REGISTRATION_FEE') {
+            <p class="eyebrow">06 · {{ text('Frais d’inscription', 'رسوم التسجيل') }}</p>
+            <h2>{{ workflow.registrationFee }} {{ workflow.currencyCode }}</h2>
+            <p>
+              {{
+                text(
+                  'Le bouton ci-dessous simule un paiement par carte se terminant par 4242.',
+                  'الزر أدناه يحاكي دفعاً ببطاقة تنتهي بـ 4242.'
+                )
+              }}
+            </p>
+            <button mat-flat-button type="button" [disabled]="busy()" (click)="pay(workflow)">
+              {{ text('Payer en mode démo', 'الدفع التجريبي') }}
+            </button>
+          }
+          @case ('CLASS_ASSIGNMENT') {
+            <div class="waiting">
+              <span>✓</span>
+              <p class="eyebrow">07 · {{ text('Affectation', 'التعيين') }}</p>
+              <h2>{{ text('Le dossier est complet', 'الملف مكتمل') }}</h2>
+              <p>
+                {{
+                  text(
+                    'L’école va maintenant affecter la classe et activer l’inscription.',
+                    'ستقوم المدرسة الآن بتعيين القسم وتفعيل التسجيل.'
+                  )
+                }}
+              </p>
+            </div>
+          }
+          @case ('READY') {
+            <div class="waiting">
+              <span>✓</span>
+              <h2>
+                {{ text('Classe affectée, activation en cours', 'تم تعيين القسم، التفعيل جارٍ') }}
+              </h2>
+            </div>
+          }
+          @case ('ACTIVE') {
+            <div class="waiting active">
+              <span>✓</span>
+              <p class="eyebrow">08 · {{ text('Inscription active', 'التسجيل مفعل') }}</p>
+              <h2>{{ text('Bienvenue chez SchoolZ !', 'مرحباً بكم في SchoolZ!') }}</h2>
+              <p>
+                {{
+                  text(
+                    'Le dossier élève et son inscription annuelle sont maintenant actifs.',
+                    'ملف التلميذ وتسجيله السنوي مفعّلان الآن.'
+                  )
+                }}
+              </p>
+            </div>
+          }
+        }
+      </article>
+    </section>
+  } @else if (!busy() && !error()) {
+    <section class="empty">
+      <span>✦</span>
+      <h2>{{ text('Aucun parcours en cours', 'لا يوجد مسار جارٍ') }}</h2>
+      <p>
+        {{
+          text(
+            'Acceptez d’abord une offre depuis le portail admissions.',
+            'اقبل أولاً عرضاً من بوابة القبول.'
+          )
+        }}
+      </p>
+      <a mat-flat-button routerLink="/admissions">{{
+        text('Ouvrir les admissions', 'فتح القبول')
+      }}</a>
+    </section>
+  }
+</main>

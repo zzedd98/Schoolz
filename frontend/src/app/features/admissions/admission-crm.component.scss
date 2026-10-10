@@ -1,0 +1,399 @@
+:host {
+  display: block;
+}
+
+.admissions-page {
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: clamp(26px, 3vw, 48px);
+}
+
+.page-heading,
+.heading-actions,
+.campaign-bar,
+.kanban-column > header,
+.form-actions {
+  display: flex;
+  align-items: center;
+}
+
+.page-heading,
+.campaign-bar,
+.kanban-column > header {
+  justify-content: space-between;
+}
+
+.page-heading {
+  gap: 24px;
+}
+
+.page-heading h1 {
+  max-width: 760px;
+  margin: 5px 0 8px;
+  color: var(--ink-950);
+  font-size: clamp(27px, 3.4vw, 45px);
+  letter-spacing: -0.045em;
+}
+
+.page-heading p:not(.eyebrow) {
+  max-width: 700px;
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 14px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--blue-650);
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.heading-actions {
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.alert {
+  margin-top: 16px;
+  padding: 11px 14px;
+  color: #934532;
+  background: #fff0eb;
+  border: 1px solid #f0c7bb;
+  border-radius: 11px;
+  font-size: 13px;
+}
+
+.campaign-bar {
+  margin-top: 24px;
+  padding: 14px 16px;
+  gap: 18px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 9px 30px rgb(19 37 70 / 4%);
+}
+
+.campaign-bar > div {
+  margin-inline-end: auto;
+}
+
+.campaign-bar span,
+.campaign-bar strong {
+  display: block;
+}
+
+.campaign-bar span,
+.campaign-bar small {
+  color: var(--ink-400);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.campaign-bar strong {
+  margin-top: 3px;
+  color: var(--ink-800);
+  font-size: 14px;
+}
+
+select,
+input,
+textarea {
+  min-height: 40px;
+  padding: 8px 11px;
+  color: var(--ink-800);
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.metrics {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(135px, 1fr));
+  gap: 9px;
+}
+
+.metrics article {
+  min-height: 112px;
+  padding: 15px;
+  background: white;
+  border: 1px solid var(--line-soft);
+  border-radius: 13px;
+}
+
+.metrics span,
+.metrics strong,
+.metrics small {
+  display: block;
+}
+
+.metrics span {
+  color: var(--ink-400);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metrics strong {
+  margin: 8px 0 4px;
+  color: var(--ink-900);
+  font-size: 25px;
+}
+
+.metrics small {
+  color: var(--ink-500);
+  font-size: 12px;
+}
+
+.metrics .warning strong {
+  color: #a56d1c;
+}
+
+.metrics .success strong {
+  color: var(--blue-650);
+}
+
+.metrics .sources div {
+  margin-top: 9px;
+  display: grid;
+  gap: 4px;
+}
+
+.metrics .sources small {
+  display: flex;
+  justify-content: space-between;
+}
+
+.kanban {
+  margin-top: 16px;
+  padding-bottom: 12px;
+  display: grid;
+  grid-template-columns: repeat(11, minmax(205px, 1fr));
+  gap: 9px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+
+.kanban-column {
+  min-height: 470px;
+  padding: 10px;
+  background: #f3f5f8;
+  border: 1px solid #e6e9ec;
+  border-radius: 13px;
+  scroll-snap-align: start;
+}
+
+.kanban-column > header {
+  min-height: 34px;
+  gap: 7px;
+  color: var(--ink-700);
+  font-size: 13px;
+}
+
+.kanban-column > header span {
+  width: 8px;
+  height: 8px;
+  background: #8190a4;
+  border-radius: 50%;
+}
+
+.kanban-column > header strong {
+  margin-inline-end: auto;
+}
+
+.kanban-column > header b {
+  min-width: 23px;
+  padding: 4px;
+  background: white;
+  border-radius: 999px;
+  text-align: center;
+}
+
+.kanban-column[data-stage='ACCEPTED'] > header span,
+.kanban-column[data-stage='ENROLLED'] > header span {
+  background: #204a94;
+}
+
+.kanban-column[data-stage='REJECTED'] > header span {
+  background: #bd614c;
+}
+
+.kanban-column[data-stage='WAITLISTED'] > header span {
+  background: #d29a38;
+}
+
+.card-stack {
+  margin-top: 7px;
+  display: grid;
+  gap: 7px;
+}
+
+.pipeline-card {
+  width: 100%;
+  padding: 12px;
+  color: inherit;
+  background: white;
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  box-shadow: 0 5px 14px rgb(19 37 70 / 4%);
+  font: inherit;
+  text-align: start;
+  cursor: grab;
+}
+
+.pipeline-card:active {
+  cursor: grabbing;
+}
+
+.pipeline-card strong,
+.pipeline-card small,
+.pipeline-card code,
+.pipeline-card em {
+  display: block;
+}
+
+.card-kind {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 6px;
+  color: var(--blue-650);
+  background: var(--sky-50);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.pipeline-card strong {
+  color: var(--ink-800);
+  font-size: 13px;
+}
+
+.pipeline-card small {
+  margin-top: 3px;
+  color: var(--ink-400);
+  font-size: 12px;
+}
+
+.pipeline-card code {
+  margin-top: 8px;
+  color: #85682d;
+  font-size: 12px;
+}
+
+.pipeline-card em {
+  margin-top: 6px;
+  color: var(--ink-500);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.progress {
+  height: 4px;
+  margin-top: 9px;
+  overflow: hidden;
+  background: #e9ebee;
+  border-radius: 999px;
+}
+
+.progress i {
+  height: 100%;
+  display: block;
+  background: var(--blue-500);
+}
+
+.empty-column {
+  min-height: 62px;
+  display: grid;
+  place-items: center;
+  color: #919eaf;
+  border: 1px dashed #cdd2d8;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: rgb(10 20 37 / 50%);
+}
+
+.modal {
+  width: min(620px, 100%);
+  max-height: 90vh;
+  padding: 24px;
+  overflow: auto;
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgb(8 20 39 / 25%);
+}
+
+.modal h2 {
+  margin: 6px 0 20px;
+  color: var(--ink-900);
+}
+
+.modal form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modal label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-600);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.modal textarea {
+  min-height: 75px;
+  resize: vertical;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  margin-top: 8px;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 1000px) {
+  .metrics {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .page-heading,
+  .campaign-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .heading-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .modal form {
+    grid-template-columns: 1fr;
+  }
+  .wide {
+    grid-column: auto;
+  }
+}

@@ -1,0 +1,633 @@
+<main class="library-page" [class.is-busy]="loading() || saving()">
+  <section class="library-hero">
+    <div class="hero-copy">
+      <p>Bibliothèque scolaire · circulation vivante</p>
+      <h1>Chaque livre ouvre<br />un nouveau chemin.</h1>
+      <span
+        >Catalogue, prêts et réservations se suivent sans perdre le fil de chaque exemplaire.</span
+      >
+      <div class="hero-actions">
+        <button type="button" class="primary" (click)="openLoan()">Ouvrir un prêt</button>
+        <button type="button" class="secondary" (click)="openBook()">Ajouter un titre</button>
+      </div>
+    </div>
+    <div class="hero-orbit" aria-hidden="true">
+      <span class="book book-one">LIRE</span><span class="book book-two">RÊVER</span>
+      <span class="book book-three">APPRENDRE</span><i></i>
+    </div>
+    @if (data(); as library) {
+      <div class="hero-stats">
+        <span
+          ><b>{{ library.statistics.books }}</b
+          ><small>titres</small></span
+        >
+        <span
+          ><b>{{ library.statistics.copies }}</b
+          ><small>exemplaires</small></span
+        >
+        <span
+          ><b>{{ library.statistics.availableCopies }}</b
+          ><small>disponibles</small></span
+        >
+        <span
+          ><b>{{ library.statistics.activeLoans }}</b
+          ><small>prêts ouverts</small></span
+        >
+        <span class="alert-stat"
+          ><b>{{ library.statistics.overdueLoans }}</b
+          ><small>en retard</small></span
+        >
+      </div>
+    }
+  </section>
+
+  <section class="library-nav" aria-label="Rubriques de la bibliothèque">
+    <button
+      type="button"
+      [class.active]="activeSection() === 'catalog'"
+      (click)="selectSection('catalog')"
+    >
+      <span>01</span><b>Catalogue</b><small>Livres & exemplaires</small>
+    </button>
+    <button
+      type="button"
+      [class.active]="activeSection() === 'loans'"
+      (click)="selectSection('loans')"
+    >
+      <span>02</span><b>Prêts</b><small>Sorties & retours</small>
+    </button>
+    <button
+      type="button"
+      [class.active]="activeSection() === 'reservations'"
+      (click)="selectSection('reservations')"
+    >
+      <span>03</span><b>Réservations</b><small>File d’attente</small>
+    </button>
+    <button
+      type="button"
+      [class.active]="activeSection() === 'rules'"
+      (click)="selectSection('rules')"
+    >
+      <span>04</span><b>Règles</b><small>Durées & pénalités</small>
+    </button>
+  </section>
+
+  @if (notice()) {
+    <p class="notice" role="status"><b>✓</b>{{ notice() }}</p>
+  }
+  @if (error()) {
+    <p class="error" role="alert"><b>!</b>{{ error() }}</p>
+  }
+  @if (loading() && !data()) {
+    <section class="loading-state">
+      <span></span><strong>Ouverture de la bibliothèque…</strong>
+    </section>
+  } @else if (data(); as library) {
+    @switch (activeSection()) {
+      @case ('catalog') {
+        <section class="section-head">
+          <div>
+            <p>Explorer & équiper</p>
+            <h2>Le catalogue de l’école</h2>
+          </div>
+          <div class="section-actions">
+            <button type="button" (click)="open('category')">Nouvelle collection</button>
+            <button type="button" (click)="open('author')">Nouvel auteur</button>
+            <button type="button" class="accent" (click)="openBook()">Nouveau livre</button>
+          </div>
+        </section>
+
+        <form class="scan-ribbon" (ngSubmit)="scan()">
+          <span aria-hidden="true">⌁</span>
+          <div class="scan-copy">
+            <b>Scanner un exemplaire</b><small>Code-barres, QR ou saisie manuelle</small>
+          </div>
+          <input name="scanCode" [(ngModel)]="scanCode" placeholder="Ex. SZ-LIB-QR-0001" />
+          <button type="submit">Identifier</button>
+          @if (scanResult(); as copy) {
+            <div class="scan-result">
+              <b>{{ copy.bookTitle }}</b
+              ><span>{{ copy.accessionNumber }}</span
+              ><em [class]="'status ' + copy.status.toLowerCase()">{{
+                statusLabel(copy.status)
+              }}</em>
+            </div>
+          }
+        </form>
+
+        <section class="catalog-stream">
+          @for (book of library.books; track book.id; let index = $index) {
+            <article class="book-row" [style.--book-color]="book.categoryColor">
+              <div class="book-cover">
+                <span>{{ ('0' + (index + 1)).slice(-2) }}</span
+                ><b>{{ book.title.charAt(0) }}</b>
+              </div>
+              <div class="book-story">
+                <p>{{ book.categoryName }} · {{ book.languageCode.toUpperCase() }}</p>
+                <h3>{{ book.title }}</h3>
+                <span
+                  >{{ book.authors.length ? book.authors[0].authorName : 'Auteur collectif' }}
+                  @if (book.publicationYear) {
+                    · {{ book.publicationYear }}
+                  }
+                </span>
+                @if (book.description) {
+                  <small>{{ book.description }}</small>
+                }
+              </div>
+              <div class="availability">
+                <strong
+                  >{{ book.availableCount
+                  }}<small>/ {{ book.copyCount }} disponibles</small></strong
+                >
+                <div>
+                  <i
+                    [style.width.%]="
+                      book.copyCount ? (book.availableCount / book.copyCount) * 100 : 0
+                    "
+                  ></i>
+                </div>
+              </div>
+              <div class="copy-list">
+                @for (copy of library.copies; track copy.id) {
+                  @if (copy.bookId === book.id) {
+                    <span title="{{ copy.barcode || copy.qrCode }}">
+                      <b>{{ copy.accessionNumber }}</b>
+                      <em [class]="'status ' + copy.status.toLowerCase()">{{
+                        statusLabel(copy.status)
+                      }}</em>
+                    </span>
+                  }
+                }
+              </div>
+              <button type="button" class="row-action" (click)="openCopy(book)">
+                + Exemplaire
+              </button>
+            </article>
+          } @empty {
+            <p class="empty-state">Le premier rayon est prêt à accueillir ses livres.</p>
+          }
+        </section>
+      }
+
+      @case ('loans') {
+        <section class="section-head">
+          <div>
+            <p>Circulation</p>
+            <h2>Qui lit quoi, jusqu’à quand ?</h2>
+          </div>
+          <button type="button" class="accent" (click)="openLoan()">Nouveau prêt</button>
+        </section>
+        <section class="loan-layout">
+          <div class="loan-current">
+            <header>
+              <span>En circulation</span><b>{{ activeLoans().length }} prêt(s)</b>
+            </header>
+            @for (loan of activeLoans(); track loan.id) {
+              <article [class.overdue]="loan.overdue">
+                <div class="loan-date">
+                  <small>Retour</small><b>{{ shortDate(loan.dueOn) }}</b>
+                </div>
+                <div class="loan-reader">
+                  <span>{{ loan.studentName.charAt(0) }}</span>
+                  <p>
+                    <b>{{ loan.studentName }}</b
+                    ><small>{{ loan.accessionNumber }}</small>
+                  </p>
+                </div>
+                <div class="loan-book">
+                  <b>{{ loan.bookTitle }}</b
+                  ><small>Emprunté le {{ shortDate(loan.loanedOn) }}</small>
+                </div>
+                <em [class]="'status ' + (loan.overdue ? 'late' : 'active')">{{
+                  loan.overdue ? 'En retard' : 'En cours'
+                }}</em>
+                <button type="button" (click)="openReturn(loan)">Enregistrer le retour</button>
+              </article>
+            } @empty {
+              <p class="empty-state">Aucun livre n’est actuellement sorti.</p>
+            }
+          </div>
+          <aside class="loan-history">
+            <header><span>Retours récents</span><small>Historique conservé</small></header>
+            @for (loan of historyLoans(); track loan.id) {
+              <div>
+                <i>✓</i>
+                <p>
+                  <b>{{ loan.bookTitle }}</b
+                  ><span>{{ loan.studentName }} · {{ shortDate(loan.returnedOn) }}</span>
+                </p>
+                @if (loan.fineAmount) {
+                  <em>{{ loan.fineAmount }} MAD</em>
+                }
+              </div>
+            } @empty {
+              <p class="empty-state">Aucun retour enregistré.</p>
+            }
+          </aside>
+        </section>
+      }
+
+      @case ('reservations') {
+        <section class="section-head">
+          <div>
+            <p>Le prochain lecteur</p>
+            <h2>Une file claire et équitable</h2>
+          </div>
+          <button type="button" class="accent" (click)="openReservation()">
+            Réserver un livre
+          </button>
+        </section>
+        <section class="queue-stream">
+          @for (reservation of activeReservations(); track reservation.id) {
+            <article [class.ready]="reservation.status === 'READY'">
+              <div class="queue-position">
+                @if (reservation.status === 'READY') {
+                  <b>PRÊT</b><small>à retirer</small>
+                } @else {
+                  <b>#{{ reservation.queuePosition }}</b
+                  ><small>dans la file</small>
+                }
+              </div>
+              <div class="queue-line"><i></i></div>
+              <div class="queue-reader">
+                <span>{{ reservation.studentName.charAt(0) }}</span>
+                <p>
+                  <b>{{ reservation.studentName }}</b
+                  ><small>{{ reservation.bookTitle }}</small>
+                </p>
+              </div>
+              <div class="queue-detail">
+                @if (reservation.status === 'READY') {
+                  <b>{{ reservation.accessionNumber }}</b
+                  ><small>À retirer avant le {{ shortDate(reservation.expiresAt) }}</small>
+                } @else {
+                  <b>En attente d’un retour</b
+                  ><small>Réservation du {{ shortDate(reservation.reservedAt) }}</small>
+                }
+              </div>
+              <button type="button" (click)="cancelReservation(reservation)">Annuler</button>
+            </article>
+          } @empty {
+            <p class="empty-state">Aucune réservation active.</p>
+          }
+        </section>
+      }
+
+      @case ('rules') {
+        <section class="section-head">
+          <div>
+            <p>Politique documentaire</p>
+            <h2>Des règles simples, expliquées à tous</h2>
+          </div>
+        </section>
+        <section class="rules-layout">
+          <form class="rules-form" (ngSubmit)="saveConfiguration()">
+            <header>
+              <span>Règles de circulation</span
+              ><small>Appliquées aux prochains prêts et retours</small>
+            </header>
+            <label
+              ><span>Durée standard du prêt</span
+              ><input
+                type="number"
+                name="loanDays"
+                [(ngModel)]="configurationForm.defaultLoanDays"
+                min="1"
+                max="180"
+              /><small>jours</small></label
+            >
+            <label
+              ><span>Délai de retrait d’une réservation</span
+              ><input
+                type="number"
+                name="holdDays"
+                [(ngModel)]="configurationForm.reservationHoldDays"
+                min="1"
+                max="30"
+              /><small>jours</small></label
+            >
+            <label class="toggle-line"
+              ><span><b>Pénalités de retard</b><small>Optionnelles et plafonnées</small></span
+              ><input
+                type="checkbox"
+                name="fineEnabled"
+                [(ngModel)]="configurationForm.fineEnabled"
+            /></label>
+            @if (configurationForm.fineEnabled) {
+              <label
+                ><span>Montant par jour</span
+                ><input
+                  type="number"
+                  name="fineDay"
+                  [(ngModel)]="configurationForm.finePerOverdueDay"
+                  min="0"
+                  step="0.5"
+                /><small>MAD</small></label
+              >
+              <label
+                ><span>Plafond</span
+                ><input
+                  type="number"
+                  name="fineMax"
+                  [(ngModel)]="configurationForm.maximumFine"
+                  min="0"
+                /><small>MAD</small></label
+              >
+            }
+            <button type="submit" [disabled]="saving()">Enregistrer les règles</button>
+          </form>
+          <div class="fine-ledger">
+            <header>
+              <span>Pénalités à traiter</span><b>{{ openFines().length }}</b>
+            </header>
+            @for (fine of openFines(); track fine.id) {
+              <article>
+                <div>
+                  <small>{{ fine.overdueDays }} jour(s) de retard</small><b>{{ fine.bookTitle }}</b
+                  ><span>{{ fine.studentName }}</span>
+                </div>
+                <strong
+                  >{{ fine.amount }}<small>{{ fine.currency }}</small></strong
+                ><button type="button" (click)="openFine(fine)">Traiter</button>
+              </article>
+            } @empty {
+              <p class="empty-state">Aucune pénalité en attente.</p>
+            }
+            <p class="fine-note">
+              Les pénalités sont désactivables. Aucun montant n’est créé sans retour effectif en
+              retard.
+            </p>
+          </div>
+        </section>
+      }
+    }
+  }
+</main>
+
+@if (drawer()) {
+  <button class="drawer-scrim" type="button" (click)="closeDrawer()" aria-label="Fermer"></button>
+  <aside class="library-drawer">
+    <button class="drawer-close" type="button" (click)="closeDrawer()">×</button>
+    @switch (drawer()) {
+      @case ('book') {
+        <header>
+          <p>Catalogue</p>
+          <h2>Ajouter un nouveau titre</h2>
+          <span>Décrivez l’œuvre ; les exemplaires physiques viendront ensuite.</span>
+        </header>
+        <form (ngSubmit)="saveBook()">
+          <label>Titre<input name="bookTitle" [(ngModel)]="bookForm.title" required /></label>
+          <label>Sous-titre<input name="bookSubtitle" [(ngModel)]="bookForm.subtitle" /></label>
+          <div class="field-pair">
+            <label
+              >Collection<select name="bookCategory" [(ngModel)]="bookForm.categoryId" required>
+                @for (category of data()?.categories ?? []; track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select></label
+            ><label
+              >Auteur<select name="bookAuthor" [(ngModel)]="bookForm.authorId">
+                <option value="">Collectif</option>
+                @for (author of data()?.authors ?? []; track author.id) {
+                  <option [value]="author.id">{{ author.displayName }}</option>
+                }
+              </select></label
+            >
+          </div>
+          <div class="field-pair">
+            <label>ISBN<input name="bookIsbn" [(ngModel)]="bookForm.isbn" /></label
+            ><label>Langue<input name="bookLanguage" [(ngModel)]="bookForm.languageCode" /></label>
+          </div>
+          <div class="field-pair">
+            <label>Éditeur<input name="bookPublisher" [(ngModel)]="bookForm.publisher" /></label
+            ><label
+              >Année<input type="number" name="bookYear" [(ngModel)]="bookForm.publicationYear"
+            /></label>
+          </div>
+          <label
+            >Description<textarea
+              name="bookDescription"
+              [(ngModel)]="bookForm.description"
+            ></textarea>
+          </label>
+          <button type="submit" [disabled]="saving()">Créer le titre</button>
+        </form>
+      }
+      @case ('copy') {
+        <header>
+          <p>Équipement</p>
+          <h2>Nouvel exemplaire</h2>
+          <span>{{ selectedBook()?.title }}</span>
+        </header>
+        <form (ngSubmit)="saveCopy()">
+          <label
+            >Numéro d’inventaire<input
+              name="copyAccession"
+              [(ngModel)]="copyForm.accessionNumber"
+              required
+          /></label>
+          <div class="field-pair">
+            <label>Code-barres<input name="copyBarcode" [(ngModel)]="copyForm.barcode" /></label
+            ><label>Code QR<input name="copyQr" [(ngModel)]="copyForm.qrCode" /></label>
+          </div>
+          <label
+            >Emplacement<select name="copyLocation" [(ngModel)]="copyForm.locationId">
+              @for (location of locations(); track location.id) {
+                <option [value]="location.id">{{ location.name }}</option>
+              }
+            </select></label
+          >
+          <div class="field-pair">
+            <label
+              >Date d’acquisition<input
+                type="date"
+                name="copyDate"
+                [(ngModel)]="copyForm.acquiredOn" /></label
+            ><label
+              >État<select name="copyCondition" [(ngModel)]="copyForm.condition">
+                <option value="NEW">Neuf</option>
+                <option value="GOOD">Bon</option>
+                <option value="FAIR">Correct</option>
+              </select></label
+            >
+          </div>
+          <label>Note<textarea name="copyNotes" [(ngModel)]="copyForm.notes"></textarea></label>
+          <button type="submit" [disabled]="saving()">Équiper l’exemplaire</button>
+        </form>
+      }
+      @case ('loan') {
+        <header>
+          <p>Circulation</p>
+          <h2>Ouvrir un prêt</h2>
+          <span>Le prêt apparaîtra immédiatement dans l’espace de l’élève.</span>
+        </header>
+        <form (ngSubmit)="saveLoan()">
+          <label
+            >Exemplaire disponible<select name="loanCopy" [(ngModel)]="loanForm.copyId" required>
+              @for (copy of data()?.copies ?? []; track copy.id) {
+                @if (copy.status === 'AVAILABLE' || copy.id === loanForm.copyId) {
+                  <option [value]="copy.id">
+                    {{ copy.accessionNumber }} · {{ copy.bookTitle }}
+                  </option>
+                }
+              }
+            </select></label
+          >
+          <label
+            >Élève<select name="loanStudent" [(ngModel)]="loanForm.studentId" required>
+              @for (student of data()?.students ?? []; track student.id) {
+                <option [value]="student.id">
+                  {{ student.displayName }} · {{ student.studentNumber }}
+                </option>
+              }
+            </select></label
+          >
+          <div class="field-pair">
+            <label
+              >Départ<input
+                type="date"
+                name="loanStart"
+                [(ngModel)]="loanForm.loanedOn"
+                required /></label
+            ><label
+              >Retour prévu<input type="date" name="loanDue" [(ngModel)]="loanForm.dueOn" required
+            /></label>
+          </div>
+          <label
+            >État au départ<select name="loanCondition" [(ngModel)]="loanForm.conditionOut">
+              <option value="NEW">Neuf</option>
+              <option value="GOOD">Bon</option>
+              <option value="FAIR">Correct</option>
+            </select></label
+          >
+          <label>Note<textarea name="loanNote" [(ngModel)]="loanForm.note"></textarea></label>
+          <button type="submit" [disabled]="saving()">Confirmer le prêt</button>
+        </form>
+      }
+      @case ('return') {
+        <header>
+          <p>Retour</p>
+          <h2>Retrouver le rayon</h2>
+          <span>{{ selectedLoan()?.bookTitle }} · {{ selectedLoan()?.studentName }}</span>
+        </header>
+        <form (ngSubmit)="saveReturn()">
+          <label
+            >Date du retour<input
+              type="date"
+              name="returnDate"
+              [(ngModel)]="returnForm.returnedOn"
+              required
+          /></label>
+          <label
+            >État constaté<select name="returnCondition" [(ngModel)]="returnForm.conditionIn">
+              <option value="GOOD">Bon</option>
+              <option value="FAIR">Correct</option>
+              <option value="DAMAGED">Endommagé</option>
+            </select></label
+          >
+          <label
+            >Observation<textarea name="returnNote" [(ngModel)]="returnForm.note"></textarea>
+          </label>
+          <button type="submit" [disabled]="saving()">Enregistrer le retour</button>
+        </form>
+      }
+      @case ('reservation') {
+        <header>
+          <p>File d’attente</p>
+          <h2>Réserver un titre</h2>
+          <span>Un exemplaire libre sera mis de côté automatiquement.</span>
+        </header>
+        <form (ngSubmit)="saveReservation()">
+          <label
+            >Livre<select name="reservationBook" [(ngModel)]="reservationForm.bookId" required>
+              @for (book of data()?.books ?? []; track book.id) {
+                <option [value]="book.id">
+                  {{ book.title }} · {{ book.availableCount }} disponible(s)
+                </option>
+              }
+            </select></label
+          >
+          <label
+            >Élève<select
+              name="reservationStudent"
+              [(ngModel)]="reservationForm.studentId"
+              required
+            >
+              @for (student of data()?.students ?? []; track student.id) {
+                <option [value]="student.id">{{ student.displayName }}</option>
+              }
+            </select></label
+          >
+          <button type="submit" [disabled]="saving()">Placer dans la file</button>
+        </form>
+      }
+      @case ('author') {
+        <header>
+          <p>Référentiel</p>
+          <h2>Nouvel auteur</h2>
+          <span>Un nom soigné améliore toute la recherche documentaire.</span>
+        </header>
+        <form (ngSubmit)="saveAuthor()">
+          <label
+            >Nom affiché<input
+              name="authorName"
+              [(ngModel)]="authorForm.displayName"
+              required /></label
+          ><label
+            >Nom de classement<input
+              name="authorSort"
+              [(ngModel)]="authorForm.sortName"
+              placeholder="NOM PRÉNOM" /></label
+          ><label
+            >Biographie<textarea
+              name="authorBio"
+              [(ngModel)]="authorForm.biography"
+            ></textarea></label
+          ><button type="submit" [disabled]="saving()">Ajouter l’auteur</button>
+        </form>
+      }
+      @case ('category') {
+        <header>
+          <p>Collections</p>
+          <h2>Nouveau rayon</h2>
+          <span>Une couleur aidera les enfants à se repérer.</span>
+        </header>
+        <form (ngSubmit)="saveCategory()">
+          <label>Code<input name="categoryCode" [(ngModel)]="categoryForm.code" required /></label
+          ><label>Nom<input name="categoryName" [(ngModel)]="categoryForm.name" required /></label
+          ><label
+            >Couleur<input
+              type="color"
+              name="categoryColor"
+              [(ngModel)]="categoryForm.color" /></label
+          ><button type="submit" [disabled]="saving()">Créer la collection</button>
+        </form>
+      }
+      @case ('fine') {
+        <header>
+          <p>Pénalité</p>
+          <h2>{{ selectedFine()?.amount }} {{ selectedFine()?.currency }}</h2>
+          <span>{{ selectedFine()?.studentName }} · {{ selectedFine()?.bookTitle }}</span>
+        </header>
+        <form (ngSubmit)="resolveFine()">
+          <label
+            >Décision<select name="fineResolution" [(ngModel)]="fineForm.resolution">
+              <option value="PAID">Règlement reçu</option>
+              <option value="WAIVED">Pénalité levée</option>
+            </select></label
+          ><label
+            >Justification<textarea
+              name="fineNote"
+              [(ngModel)]="fineForm.note"
+              required
+            ></textarea></label
+          ><button type="submit" [disabled]="saving()">Clore la pénalité</button>
+        </form>
+      }
+    }
+    @if (error()) {
+      <p class="drawer-error">{{ error() }}</p>
+    }
+  </aside>
+}

@@ -1,0 +1,266 @@
+<main class="direction-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Intelligence de pilotage</span>
+      <h1>Une école qui se comprend<br />décide mieux.</h1>
+      <p>
+        Effectifs, présence, admissions et finances réunis dans une lecture vivante de votre groupe
+        scolaire.
+      </p>
+    </div>
+    <div class="hero-orbit" aria-hidden="true">
+      <span class="orbit-main">31</span><span class="orbit-dot dot-one"></span
+      ><span class="orbit-dot dot-two"></span>
+    </div>
+    <div class="filters" aria-label="Filtres du cockpit de direction">
+      <label>
+        <span>Périmètre</span>
+        <select [value]="campusId()" (change)="changeCampus($event)">
+          <option value="">Tous les campus</option>
+          @for (campus of data()?.campuses ?? []; track campus.id) {
+            <option [value]="campus.id">{{ campus.city }} · {{ campus.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Situation au</span>
+        <input type="date" [value]="asOf()" (change)="changeDate($event)" />
+      </label>
+      <button type="button" (click)="refresh()">Actualiser</button>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <div class="state" role="status"><span class="loader"></span>Calcul des indicateurs…</div>
+  } @else if (error()) {
+    <div class="state error" role="alert">{{ error() }}</div>
+  } @else if (data(); as dashboard) {
+    <section class="kpi-river" aria-label="Indicateurs clés">
+      <article class="kpi kpi-primary">
+        <span>Élèves</span><strong>{{ number(dashboard.summary.totalStudents) }}</strong
+        ><small>{{ number(dashboard.summary.enrolledStudents) }} inscrits</small>
+      </article>
+      <article class="kpi">
+        <span>Présents</span><strong>{{ number(dashboard.summary.presentStudents) }}</strong
+        ><small>{{ rate(100 - dashboard.summary.absenceRate) }} de présence</small>
+      </article>
+      <article class="kpi kpi-alert">
+        <span>Absents</span><strong>{{ number(dashboard.summary.absentStudents) }}</strong
+        ><small>{{ dashboard.summary.teachersAbsent }} enseignant(s) absent(s)</small>
+      </article>
+      <article class="kpi kpi-money">
+        <span>Revenu attendu</span
+        ><strong>{{ money(dashboard.summary.expectedRevenue, true) }}</strong
+        ><small>sur la période</small>
+      </article>
+      <article class="kpi">
+        <span>Encaissé</span><strong>{{ money(dashboard.summary.collectedRevenue, true) }}</strong
+        ><small>{{ rate(dashboard.summary.collectionRate) }} recouvré</small>
+      </article>
+      <article class="kpi kpi-alert">
+        <span>Impayés</span><strong>{{ money(dashboard.summary.outstandingRevenue, true) }}</strong
+        ><small>à accompagner</small>
+      </article>
+      <article class="kpi">
+        <span>Candidatures</span><strong>{{ dashboard.summary.newApplications }}</strong
+        ><small>nouvelles</small>
+      </article>
+      <article class="kpi">
+        <span>Capacité</span><strong>{{ rate(dashboard.summary.capacityRate) }}</strong
+        ><small>{{ number(dashboard.summary.capacityTotal) }} places</small>
+      </article>
+    </section>
+
+    <section class="story-grid">
+      <article class="panel enrollment-panel">
+        <header>
+          <div>
+            <span class="section-number">01</span>
+            <h2>Évolution des inscriptions</h2>
+          </div>
+          <strong>+{{ dashboard.enrollmentTrend.at(-1)?.newApplications ?? 0 }}</strong>
+        </header>
+        <div class="column-chart" aria-label="Évolution mensuelle des effectifs">
+          @for (point of dashboard.enrollmentTrend; track point.date) {
+            <div class="column-item" [title]="number(point.totalStudents) + ' élèves'">
+              <span>{{ number(point.totalStudents) }}</span>
+              <i [style.height.%]="relative(point.totalStudents, maxEnrollment(), 22)"></i>
+              <small>{{ month(point.date) }}</small>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel collection-panel">
+        <header>
+          <div>
+            <span class="section-number">02</span>
+            <h2>Recouvrement</h2>
+          </div>
+          <strong>{{ rate(dashboard.summary.collectionRate) }}</strong>
+        </header>
+        <div class="collection-list">
+          @for (point of dashboard.collectionTrend; track point.date) {
+            <div class="collection-row">
+              <small>{{ month(point.date) }}</small>
+              <div class="rail">
+                <i class="expected" [style.width.%]="relative(point.expected, maxExpected())"></i>
+                <i class="collected" [style.width.%]="relative(point.collected, maxExpected())"></i>
+              </div>
+              <b>{{ rate(point.collectionRate) }}</b>
+            </div>
+          }
+        </div>
+        <footer>
+          <span><i class="legend expected"></i>Attendu</span
+          ><span><i class="legend collected"></i>Encaissé</span>
+        </footer>
+      </article>
+
+      <article class="panel attendance-panel">
+        <header>
+          <div>
+            <span class="section-number">03</span>
+            <h2>Absentéisme</h2>
+          </div>
+          <strong>{{ rate(dashboard.summary.absenceRate) }}</strong>
+        </header>
+        <div class="spark-chart">
+          @for (point of dashboard.absenteeismTrend; track point.date) {
+            <div [title]="month(point.date) + ' · ' + rate(point.absenceRate)">
+              <i [style.height.%]="relative(point.absenceRate, maxAbsence(), 10)"></i>
+              <small>{{ month(point.date) }}</small>
+            </div>
+          }
+        </div>
+        <p class="panel-note">
+          {{ number(dashboard.summary.presentStudents) }} élèves présents sur
+          {{ number(dashboard.summary.totalStudents) }}.
+        </p>
+      </article>
+
+      <article class="panel classes-panel">
+        <header>
+          <div>
+            <span class="section-number">04</span>
+            <h2>Répartition des classes</h2>
+          </div>
+        </header>
+        <div class="h-bars">
+          @for (item of dashboard.classDistribution; track item.code) {
+            <div class="h-row">
+              <span>{{ item.labelFr }}</span>
+              <div class="rail">
+                <i
+                  [style.width.%]="relative(item.value, dimensionMax(dashboard.classDistribution))"
+                ></i>
+              </div>
+              <b>{{ number(item.value) }}</b>
+              @if (item.target) {
+                <small>/ {{ number(item.target) }}</small>
+              }
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel funnel-panel">
+        <header>
+          <div>
+            <span class="section-number">05</span>
+            <h2>Parcours d’admission</h2>
+          </div>
+        </header>
+        <div class="funnel">
+          @for (item of dashboard.admissionsFunnel; track item.code; let index = $index) {
+            <div [style.width.%]="relative(item.value, dashboard.admissionsFunnel[0].value, 28)">
+              <span>{{ item.labelFr }}</span
+              ><strong>{{ number(item.value) }}</strong>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel revenue-panel">
+        <header>
+          <div>
+            <span class="section-number">06</span>
+            <h2>Revenu par service</h2>
+          </div>
+        </header>
+        <div class="service-list">
+          @for (item of dashboard.revenueByService; track item.code; let index = $index) {
+            <div>
+              <span class="service-dot dot-{{ index }}"></span>
+              <p>
+                <strong>{{ item.labelFr }}</strong
+                ><small>{{ money(item.value) }}</small>
+              </p>
+              <i
+                [style.width.%]="relative(item.value, dimensionMax(dashboard.revenueByService))"
+              ></i>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel aging-panel">
+        <header>
+          <div>
+            <span class="section-number">07</span>
+            <h2>Ancienneté des impayés</h2>
+          </div>
+        </header>
+        <div class="aging-path">
+          @for (item of dashboard.unpaidAging; track item.code; let index = $index) {
+            <div [class.high-risk]="index >= 3">
+              <span>{{ item.labelFr }}</span
+              ><strong>{{ money(item.value, true) }}</strong>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel capacity-panel">
+        <header>
+          <div>
+            <span class="section-number">08</span>
+            <h2>Capacité multi-campus</h2>
+          </div>
+        </header>
+        <div class="campus-list">
+          @for (campus of dashboard.campusComparison; track campus.campusId) {
+            <div class="campus-row">
+              <div class="campus-name">
+                <span>{{ campus.city.slice(0, 2).toUpperCase() }}</span>
+                <p>
+                  <strong>{{ campus.city }}</strong
+                  ><small>{{ campus.campusName }}</small>
+                </p>
+              </div>
+              <div class="capacity-rail">
+                <i [style.width.%]="campus.capacityRate"></i
+                ><span
+                  >{{ number(campus.totalStudents) }} / {{ number(campus.capacityTotal) }}</span
+                >
+              </div>
+              <b>{{ rate(campus.collectionRate) }}<small>recouvré</small></b>
+            </div>
+          }
+        </div>
+      </article>
+    </section>
+
+    <section class="decision-strip">
+      <div>
+        <span>À retenir</span>
+        <h2>Les signaux qui méritent votre attention</h2>
+      </div>
+      <ol>
+        @for (insight of dashboard.insights; track insight) {
+          <li>{{ insight }}</li>
+        }
+      </ol>
+    </section>
+  }
+</main>

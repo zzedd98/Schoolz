@@ -1,0 +1,240 @@
+<main class="configuration-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span>Une école qui choisit ses règles</span>
+      <h1>Vos habitudes deviennent<br /><em>le cadre de SchoolZ.</em></h1>
+      <p>
+        Périodes, horaires, frais, absences, documents, notes et permissions vivent dans un même
+        centre. Chaque changement demande un motif et laisse une version consultable.
+      </p>
+    </div>
+    <div class="hero-compass" aria-hidden="true">
+      <i>École</i><span class="orbit one"></span><span class="orbit two"></span>
+      <b class="point academic">01</b><b class="point finance">02</b
+      ><b class="point security">03</b>
+    </div>
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="message success" role="status">{{ success() }}</p>
+  }
+
+  <nav class="category-river" aria-label="Domaines de configuration">
+    @for (category of categories; track category; let index = $index) {
+      <button
+        type="button"
+        [class.active]="selectedCategory() === category"
+        (click)="selectCategory(category)"
+      >
+        <small>{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</small>
+        <span>{{ categoryName(category) }}</span>
+      </button>
+    }
+  </nav>
+
+  @if (loading()) {
+    <div class="loading"><span></span>Lecture des règles de l’établissement…</div>
+  } @else if (data(); as dashboard) {
+    <section class="metrics" aria-label="Résumé de la configuration">
+      <div>
+        <strong>{{ dashboard.statistics.itemCount }}</strong
+        ><span>réglages visibles</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.categoryCount }}</strong
+        ><span>domaines parcourus</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.customizedCount }}</strong
+        ><span>choix personnalisés</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.recentRevisions.length }}</strong
+        ><span>versions récentes</span>
+      </div>
+    </section>
+
+    <section class="configuration-body">
+      <div class="settings-flow">
+        @for (section of dashboard.categories; track section.key) {
+          <section class="domain-section">
+            <header>
+              <span>{{ categoryName(section.key) }}</span>
+              <h2>
+                {{ section.items.length }} repère{{ section.items.length > 1 ? 's' : '' }} à ajuster
+              </h2>
+            </header>
+
+            <div class="setting-lines">
+              @for (item of section.items; track item.id; let position = $index) {
+                <article class="setting" [class.customized]="isCustomized(item)">
+                  <div class="setting-number">
+                    {{ position + 1 < 10 ? '0' + (position + 1) : position + 1 }}
+                  </div>
+                  <div class="setting-story">
+                    <div class="setting-meta">
+                      <span>{{ typeName(item.valueType) }}</span>
+                      <code>{{ item.key }}</code>
+                      @if (isCustomized(item)) {
+                        <b>Personnalisé</b>
+                      }
+                    </div>
+                    <h3>{{ item.label }}</h3>
+                    <p>{{ item.description }}</p>
+                    <small>Source {{ item.sourceModule }} · version {{ item.version }}</small>
+                  </div>
+
+                  <div class="setting-editor">
+                    @switch (item.valueType) {
+                      @case ('TEXT') {
+                        <input
+                          type="text"
+                          [ngModel]="draft(item.id)"
+                          (ngModelChange)="setDraft(item.id, $event)"
+                          [attr.aria-label]="item.label"
+                        />
+                      }
+                      @case ('TIME') {
+                        <input
+                          type="time"
+                          [ngModel]="draft(item.id)"
+                          (ngModelChange)="setDraft(item.id, $event)"
+                          [attr.aria-label]="item.label"
+                        />
+                      }
+                      @case ('NUMBER') {
+                        <input
+                          type="number"
+                          [ngModel]="draft(item.id)"
+                          (ngModelChange)="setDraft(item.id, $event)"
+                          [attr.min]="item.constraints['min'] ?? null"
+                          [attr.max]="item.constraints['max'] ?? null"
+                          [attr.aria-label]="item.label"
+                        />
+                      }
+                      @case ('MONEY') {
+                        <input
+                          type="number"
+                          step="0.01"
+                          [ngModel]="draft(item.id)"
+                          (ngModelChange)="setDraft(item.id, $event)"
+                          [attr.aria-label]="item.label"
+                        />
+                      }
+                      @case ('PERCENT') {
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          [ngModel]="draft(item.id)"
+                          (ngModelChange)="setDraft(item.id, $event)"
+                          [attr.aria-label]="item.label"
+                        />
+                      }
+                      @case ('BOOLEAN') {
+                        <label class="switch">
+                          <input
+                            type="checkbox"
+                            [checked]="draft(item.id)"
+                            (change)="setDraft(item.id, $any($event.target).checked)"
+                          />
+                          <span>{{ draft(item.id) ? 'Activé' : 'Désactivé' }}</span>
+                        </label>
+                      }
+                      @case ('SELECT') {
+                        <select
+                          [ngModel]="draft(item.id)"
+                          (ngModelChange)="setDraft(item.id, $event)"
+                          [attr.aria-label]="item.label"
+                        >
+                          @for (option of item.options; track option) {
+                            <option [value]="option">{{ option }}</option>
+                          }
+                        </select>
+                      }
+                      @case ('MULTI_SELECT') {
+                        <div class="choice-cloud" [attr.aria-label]="item.label">
+                          @for (option of item.options; track option) {
+                            <label [class.checked]="hasOption(item.id, option)">
+                              <input
+                                type="checkbox"
+                                [checked]="hasOption(item.id, option)"
+                                (change)="
+                                  toggleOption(item.id, option, $any($event.target).checked)
+                                "
+                              />
+                              {{ option }}
+                            </label>
+                          }
+                        </div>
+                      }
+                      @case ('JSON') {
+                        <textarea
+                          rows="6"
+                          [ngModel]="structuredDrafts()[item.id]"
+                          (ngModelChange)="setStructured(item.id, $event)"
+                          [attr.aria-label]="item.label + ' au format JSON'"
+                        ></textarea>
+                      }
+                    }
+
+                    <label class="reason">
+                      <span>Pourquoi ce changement ?</span>
+                      <input
+                        type="text"
+                        [ngModel]="reason(item.id)"
+                        (ngModelChange)="setReason(item.id, $event)"
+                        placeholder="Motif obligatoire"
+                      />
+                    </label>
+                    <div class="actions">
+                      @if (isCustomized(item)) {
+                        <button type="button" class="reset" (click)="reset(item)">
+                          Valeur de référence
+                        </button>
+                      }
+                      <button
+                        type="button"
+                        class="save"
+                        [disabled]="
+                          busyId() === item.id ||
+                          !auth.hasPermission('business-configuration.manage')
+                        "
+                        (click)="save(item)"
+                      >
+                        {{ busyId() === item.id ? 'Application…' : 'Enregistrer la version' }}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+        }
+      </div>
+
+      <aside class="history">
+        <span>Journal des décisions</span>
+        <h2>Chaque règle garde sa mémoire.</h2>
+        <p>Le motif et le numéro de version restent liés au réglage dans son historique.</p>
+        <div class="history-stream">
+          @for (revision of dashboard.recentRevisions; track revision.id) {
+            <article>
+              <i>v{{ revision.version }}</i>
+              <div>
+                <strong>{{ revision.label }}</strong>
+                <p>{{ revision.reason }}</p>
+                <small>{{ revision.changedAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+              </div>
+            </article>
+          } @empty {
+            <p>Aucune version ne correspond à ce filtre.</p>
+          }
+        </div>
+      </aside>
+    </section>
+  }
+</main>

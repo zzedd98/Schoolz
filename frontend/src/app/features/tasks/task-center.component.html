@@ -1,0 +1,174 @@
+<main class="task-page">
+  <section class="hero">
+    <div>
+      <span>Travail d’équipe</span>
+      <h1>La prochaine action<br /><em>ne se perd plus.</em></h1>
+      <p>
+        Relances, vérifications et validations circulent entre les bonnes personnes jusqu’à leur
+        résolution.
+      </p>
+      @if (auth.hasPermission('task.manage')) {
+        <button type="button" (click)="openCreator()">+ Confier une tâche</button>
+      }
+    </div>
+    @if (data(); as board) {
+      <div class="orbit" aria-hidden="true">
+        <strong>{{ board.counts.inProgress }}</strong
+        ><span>en mouvement</span><i></i><b></b>
+      </div>
+    }
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="message success" role="status">{{ message() }}</p>
+  }
+
+  @if (data(); as board) {
+    <section class="metrics">
+      <div>
+        <strong>{{ board.counts.todo }}</strong
+        ><span>à démarrer</span>
+      </div>
+      <div>
+        <strong>{{ board.counts.inProgress }}</strong
+        ><span>en cours</span>
+      </div>
+      <div>
+        <strong>{{ board.counts.done }}</strong
+        ><span>terminées</span>
+      </div>
+      <div class="late">
+        <strong>{{ board.counts.overdue }}</strong
+        ><span>en retard</span>
+      </div>
+    </section>
+  }
+
+  <section class="controls">
+    <div>
+      @for (item of statuses; track item.value) {
+        <button type="button" [class.active]="status === item.value" (click)="filter(item.value)">
+          {{ item.label }}
+        </button>
+      }
+    </div>
+    <select
+      [ngModel]="priority"
+      (ngModelChange)="filterPriority($event)"
+      aria-label="Filtrer par priorité"
+    >
+      <option value="">Toutes priorités</option>
+      <option value="URGENT">Urgentes</option>
+      <option value="HIGH">Hautes</option>
+      <option value="MEDIUM">Normales</option>
+      <option value="LOW">Basses</option>
+    </select>
+  </section>
+
+  <section class="work-river">
+    <header>
+      <span>File opérationnelle</span>
+      <h2>Qui fait quoi, pour quand ?</h2>
+    </header>
+    @if (loading()) {
+      <div class="loading"><i></i>Organisation du travail…</div>
+    } @else if (data(); as board) {
+      @for (task of board.tasks; track task.id; let index = $index) {
+        <article [class.done]="task.status === 'DONE'" [class.urgent]="task.priority === 'URGENT'">
+          <span class="number">{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</span>
+          <span class="date"
+            ><b>{{ task.dueDate | date: 'dd' }}</b
+            ><small>{{ task.dueDate | date: 'MMM' }}</small></span
+          >
+          <div class="task-copy">
+            <div class="meta">
+              <span [class]="task.priority.toLowerCase()">{{ priorityName(task.priority) }}</span
+              ><b>{{ statusName(task.status) }}</b
+              ><i>{{ task.source === 'WORKFLOW' ? 'Automatique' : 'Manuelle' }}</i>
+            </div>
+            <h3>{{ task.title }}</h3>
+            <p>{{ task.description }}</p>
+            <div class="assignee">
+              <span>{{ task.assigneeName.slice(0, 1) }}</span
+              ><strong>{{ task.assigneeName }}</strong>
+            </div>
+          </div>
+          <div class="actions">
+            @if (task.linkedEntityType) {
+              <a [routerLink]="task.routePath">Voir {{ task.linkedEntityType.toLowerCase() }} ↗</a>
+            }
+            @if (auth.hasPermission('task.manage') && task.status === 'TODO') {
+              <button type="button" [disabled]="busy()" (click)="move(task, 'IN_PROGRESS')">
+                Commencer
+              </button>
+            }
+            @if (auth.hasPermission('task.manage') && task.status !== 'DONE') {
+              <button
+                class="complete"
+                type="button"
+                [disabled]="busy()"
+                (click)="move(task, 'DONE')"
+              >
+                Terminer ✓
+              </button>
+            }
+          </div>
+        </article>
+      } @empty {
+        <div class="empty">
+          <b>✓</b>
+          <h3>Aucune tâche ici.</h3>
+          <p>Votre filtre est à jour.</p>
+        </div>
+      }
+      <footer class="pagination">
+        <button type="button" [disabled]="board.page === 0" (click)="load(board.page - 1)">←</button
+        ><span>Page {{ board.page + 1 }}</span
+        ><button type="button" [disabled]="!board.hasNext" (click)="load(board.page + 1)">→</button>
+      </footer>
+    }
+  </section>
+</main>
+
+@if (drawerOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)"></button>
+  <aside class="drawer" aria-label="Nouvelle tâche">
+    <button class="close" type="button" aria-label="Fermer" (click)="drawerOpen.set(false)">
+      ×
+    </button>
+    <span>Nouvelle responsabilité</span>
+    <h2>Confier une action.</h2>
+    <p>Donnez un résultat clair, un responsable et une échéance réaliste.</p>
+    <label
+      ><span>Titre *</span
+      ><input [(ngModel)]="form.title" placeholder="Ex. Relancer la famille Alaoui"
+    /></label>
+    <label><span>Détail</span><textarea [(ngModel)]="form.description" rows="4"></textarea></label>
+    <label
+      ><span>Responsable *</span
+      ><select [(ngModel)]="form.assigneeUserId">
+        @for (person of data()?.assignees ?? []; track person.id) {
+          <option [value]="person.id">{{ person.displayName }}</option>
+        }
+      </select></label
+    >
+    <div class="two">
+      <label><span>Échéance *</span><input type="date" [(ngModel)]="form.dueDate" /></label
+      ><label
+        ><span>Priorité</span
+        ><select [(ngModel)]="form.priority">
+          <option value="LOW">Basse</option>
+          <option value="MEDIUM">Normale</option>
+          <option value="HIGH">Haute</option>
+          <option value="URGENT">Urgente</option>
+        </select></label
+      >
+    </div>
+    <button class="create" type="button" [disabled]="busy()" (click)="create()">
+      {{ busy() ? 'Création…' : 'Créer la tâche' }}
+    </button>
+  </aside>
+}

@@ -1,0 +1,371 @@
+<main class="academic-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">{{ i18n.translate('academics.eyebrow') }}</p>
+      <h1>{{ i18n.translate('academics.title') }}</h1>
+      <p>{{ i18n.translate('academics.subtitle') }}</p>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button type="button" (click)="open('term')">
+        + {{ i18n.translate('academics.term') }}</button
+      ><button mat-flat-button type="button" (click)="open('year')">
+        + {{ i18n.translate('academics.year') }}
+      </button>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="state-card">{{ i18n.translate('common.loading') }}</div>
+  } @else {
+    @if (failed()) {
+      <div class="notice error">{{ i18n.translate('academics.error') }}</div>
+    }
+    @if (success()) {
+      <div class="notice success">{{ success() }}</div>
+    }
+
+    <section class="metric-grid">
+      <article class="active-year">
+        <small>{{ i18n.translate('academics.activeYear') }}</small
+        ><strong>{{ activeYear()?.name ?? '—' }}</strong
+        ><span>{{ activeYear()?.startsOn }} → {{ activeYear()?.endsOn }}</span>
+      </article>
+      <article>
+        <small>{{ i18n.translate('organization.campuses') }}</small
+        ><strong>{{ campuses().length }}</strong
+        ><span>{{ i18n.translate('academics.sharedAccount') }}</span>
+      </article>
+      <article>
+        <small>{{ i18n.translate('academics.levels') }}</small
+        ><strong>{{ allGrades().length }}</strong
+        ><span>{{ levels().length }} {{ i18n.translate('academics.cycles') }}</span>
+      </article>
+      <article>
+        <small>{{ i18n.translate('academics.classrooms') }}</small
+        ><strong>{{ classrooms().length }}</strong
+        ><span>{{ rooms().length }} {{ i18n.translate('academics.rooms') }}</span>
+      </article>
+    </section>
+
+    <section class="layout-grid">
+      <article class="panel year-panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-index">01</p>
+            <h2>{{ i18n.translate('academics.calendar') }}</h2>
+          </div>
+          <span class="count">{{ years().length }}</span>
+        </div>
+        <div class="year-list">
+          @for (year of years(); track year.id) {
+            <div class="year-row" [class.current]="year.status === 'ACTIVE'">
+              <div class="year-main">
+                <span class="status" [attr.data-status]="year.status">{{ year.status }}</span>
+                <div>
+                  <strong>{{ year.name }}</strong
+                  ><small>{{ year.startsOn }} — {{ year.endsOn }}</small>
+                </div>
+              </div>
+              <div class="term-track">
+                @for (term of year.terms; track term.id) {
+                  <span
+                    ><b>{{ term.code }}</b
+                    >{{ term.name }}</span
+                  >
+                } @empty {
+                  <em>{{ i18n.translate('academics.noTerms') }}</em>
+                }
+              </div>
+              @if (year.status === 'DRAFT') {
+                <button mat-stroked-button type="button" (click)="activate(year)">
+                  {{ i18n.translate('academics.activate') }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel hierarchy-panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-index">02</p>
+            <h2>{{ i18n.translate('academics.hierarchy') }}</h2>
+          </div>
+          <div class="mini-actions">
+            <button type="button" (click)="open('level')">
+              + {{ i18n.translate('academics.cycle') }}</button
+            ><button type="button" (click)="open('grade')">
+              + {{ i18n.translate('academics.level') }}
+            </button>
+          </div>
+        </div>
+        <div class="level-list">
+          @for (level of levels(); track level.id) {
+            <section class="level-block">
+              <header>
+                <span>{{ level.sequence }}</span
+                ><strong>{{ level.name }}</strong
+                ><small>{{ level.code }}</small>
+              </header>
+              <div class="grade-chips">
+                @for (grade of level.grades; track grade.id) {
+                  <span title="{{ grade.code }}">{{ grade.name }}</span>
+                }
+              </div>
+            </section>
+          }
+        </div>
+        <button class="offering-button" type="button" (click)="open('offering')">
+          {{ i18n.translate('academics.configureOfferings') }} →
+        </button>
+      </article>
+    </section>
+
+    <section class="operations">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2>{{ i18n.translate('academics.operations') }}</h2>
+        </div>
+        <div>
+          <button mat-stroked-button type="button" (click)="open('room')">
+            + {{ i18n.translate('academics.room') }}</button
+          ><button mat-flat-button type="button" (click)="open('classroom')">
+            + {{ i18n.translate('academics.classroom') }}
+          </button>
+        </div>
+      </div>
+      <div class="operations-grid">
+        <article class="data-card">
+          <header>
+            <h3>{{ i18n.translate('academics.classrooms') }}</h3>
+            <span>{{ classrooms().length }}</span>
+          </header>
+          <div class="data-list">
+            @for (classroom of classrooms(); track classroom.id) {
+              <div>
+                <span class="code-box">{{ classroom.code }}</span>
+                <p>
+                  <strong>{{ classroom.name }}</strong
+                  ><small
+                    >{{ campusName(classroom.campusId) }} ·
+                    {{ gradeName(classroom.gradeLevelId) }}</small
+                  >
+                </p>
+                <b>{{ classroom.capacity }}</b>
+              </div>
+            }
+          </div>
+        </article>
+        <article class="data-card">
+          <header>
+            <h3>{{ i18n.translate('academics.rooms') }}</h3>
+            <span>{{ rooms().length }}</span>
+          </header>
+          <div class="data-list">
+            @for (room of rooms(); track room.id) {
+              <div>
+                <span class="room-icon">□</span>
+                <p>
+                  <strong>{{ room.name }}</strong
+                  ><small>{{ campusName(room.campusId) }} · {{ room.roomType }}</small>
+                </p>
+                <b>{{ room.capacity }}</b>
+              </div>
+            }
+          </div>
+        </article>
+      </div>
+    </section>
+  }
+</main>
+
+@if (panel()) {
+  <button class="scrim" type="button" (click)="close()" aria-label="Fermer"></button>
+  <aside class="drawer">
+    <header>
+      <div>
+        <p class="eyebrow">{{ i18n.translate('academics.configure') }}</p>
+        <h2>{{ i18n.translate('academics.drawerTitle') }}</h2>
+      </div>
+      <button type="button" (click)="close()">×</button>
+    </header>
+    @switch (panel()) {
+      @case ('year') {
+        <form [formGroup]="yearForm" (ngSubmit)="createYear()">
+          <mat-form-field appearance="outline"
+            ><mat-label>Code</mat-label><input matInput formControlName="code" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+            ><input matInput formControlName="name" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.startDate') }}</mat-label
+            ><input matInput type="date" formControlName="startsOn" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.endDate') }}</mat-label
+            ><input matInput type="date" formControlName="endsOn" /></mat-form-field
+          ><button mat-flat-button type="submit">{{ i18n.translate('common.save') }}</button>
+        </form>
+      }
+      @case ('term') {
+        <form [formGroup]="termForm" (ngSubmit)="createTerm()">
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.year') }}</mat-label
+            ><mat-select formControlName="yearId">
+              @for (year of years(); track year.id) {
+                <mat-option [value]="year.id">{{ year.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Code</mat-label><input matInput formControlName="code" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+            ><input matInput formControlName="name" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Type</mat-label
+            ><mat-select formControlName="type"
+              ><mat-option value="TRIMESTER">Trimestre</mat-option
+              ><mat-option value="SEMESTER">Semestre</mat-option
+              ><mat-option value="TERM">Période</mat-option></mat-select
+            ></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Ordre</mat-label
+            ><input matInput type="number" formControlName="sequence" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.startDate') }}</mat-label
+            ><input matInput type="date" formControlName="startsOn" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.endDate') }}</mat-label
+            ><input matInput type="date" formControlName="endsOn" /></mat-form-field
+          ><button mat-flat-button type="submit">{{ i18n.translate('common.save') }}</button>
+        </form>
+      }
+      @case ('level') {
+        <form [formGroup]="levelForm" (ngSubmit)="createLevel()">
+          <mat-form-field appearance="outline"
+            ><mat-label>Code</mat-label><input matInput formControlName="code" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+            ><input matInput formControlName="name" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Ordre</mat-label
+            ><input matInput type="number" formControlName="sequence" /></mat-form-field
+          ><button mat-flat-button type="submit">{{ i18n.translate('common.save') }}</button>
+        </form>
+      }
+      @case ('grade') {
+        <form [formGroup]="gradeForm" (ngSubmit)="createGrade()">
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.cycle') }}</mat-label
+            ><mat-select formControlName="schoolLevelId">
+              @for (level of levels(); track level.id) {
+                <mat-option [value]="level.id">{{ level.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Code</mat-label><input matInput formControlName="code" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+            ><input matInput formControlName="name" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Ordre</mat-label
+            ><input matInput type="number" formControlName="sequence" /></mat-form-field
+          ><button mat-flat-button type="submit">{{ i18n.translate('common.save') }}</button>
+        </form>
+      }
+      @case ('offering') {
+        <form [formGroup]="offeringForm" (ngSubmit)="saveOfferings()">
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.campuses') }}</mat-label
+            ><mat-select formControlName="campusId">
+              @for (campus of campuses(); track campus.id) {
+                <mat-option [value]="campus.id">{{ campus.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.levels') }}</mat-label
+            ><mat-select formControlName="gradeLevelIds" multiple>
+              @for (grade of allGrades(); track grade.id) {
+                <mat-option [value]="grade.id">{{ grade.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><button mat-flat-button type="submit">{{ i18n.translate('common.save') }}</button>
+        </form>
+      }
+      @case ('room') {
+        <form [formGroup]="roomForm" (ngSubmit)="createRoom()">
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.campuses') }}</mat-label
+            ><mat-select formControlName="campusId">
+              @for (campus of campuses(); track campus.id) {
+                <mat-option [value]="campus.id">{{ campus.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Code</mat-label><input matInput formControlName="code" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+            ><input matInput formControlName="name" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Type</mat-label
+            ><mat-select formControlName="roomType"
+              ><mat-option value="CLASSROOM">Classe</mat-option
+              ><mat-option value="LAB">Laboratoire</mat-option
+              ><mat-option value="LIBRARY">Bibliothèque</mat-option
+              ><mat-option value="SPORT">Sport</mat-option></mat-select
+            ></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Capacité</mat-label
+            ><input matInput type="number" formControlName="capacity" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Étage</mat-label
+            ><input matInput formControlName="floorLabel" /></mat-form-field
+          ><button mat-flat-button type="submit">{{ i18n.translate('common.save') }}</button>
+        </form>
+      }
+      @case ('classroom') {
+        <form [formGroup]="classroomForm" (ngSubmit)="createClassroom()">
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.campuses') }}</mat-label
+            ><mat-select formControlName="campusId">
+              @for (campus of campuses(); track campus.id) {
+                <mat-option [value]="campus.id">{{ campus.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.year') }}</mat-label
+            ><mat-select formControlName="academicYearId">
+              @for (year of years(); track year.id) {
+                <mat-option [value]="year.id">{{ year.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.level') }}</mat-label
+            ><mat-select formControlName="gradeLevelId">
+              @for (grade of allGrades(); track grade.id) {
+                <mat-option [value]="grade.id">{{ grade.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('academics.room') }}</mat-label
+            ><mat-select formControlName="physicalRoomId"
+              ><mat-option [value]="null">—</mat-option>
+              @for (room of rooms(); track room.id) {
+                <mat-option [value]="room.id">{{ room.name }}</mat-option>
+              }
+            </mat-select></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Code</mat-label><input matInput formControlName="code" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+            ><input matInput formControlName="name" /></mat-form-field
+          ><mat-form-field appearance="outline"
+            ><mat-label>Capacité</mat-label
+            ><input matInput type="number" formControlName="capacity" /></mat-form-field
+          ><button mat-flat-button type="submit">{{ i18n.translate('common.save') }}</button>
+        </form>
+      }
+    }
+  </aside>
+}

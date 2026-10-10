@@ -1,0 +1,229 @@
+<main class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">{{ i18n.translate('organization.eyebrow') }}</p>
+      <h1>{{ i18n.translate('organization.title') }}</h1>
+      <p>{{ i18n.translate('organization.subtitle') }}</p>
+    </div>
+    <button mat-flat-button type="button" (click)="showCampusForm.set(true)">
+      + {{ i18n.translate('organization.addCampus') }}
+    </button>
+  </header>
+
+  @if (loading()) {
+    <div class="state-card">{{ i18n.translate('common.loading') }}</div>
+  } @else {
+    @if (failed()) {
+      <div class="notice error">{{ i18n.translate('organization.error') }}</div>
+    }
+    @if (success()) {
+      <div class="notice success">{{ success() }}</div>
+    }
+
+    <section class="hero-grid">
+      <article class="identity-card">
+        <div class="org-monogram">{{ organization()?.name?.slice(0, 1) }}</div>
+        <div>
+          <small>{{ organization()?.code }}</small>
+          <h2>{{ organization()?.name }}</h2>
+          <p>{{ organization()?.legalName }}</p>
+        </div>
+        <dl>
+          <div>
+            <dt>{{ i18n.translate('organization.campuses') }}</dt>
+            <dd>{{ campuses().length }}</dd>
+          </div>
+          <div>
+            <dt>{{ i18n.translate('organization.currency') }}</dt>
+            <dd>{{ settings()?.currencyCode }}</dd>
+          </div>
+          <div>
+            <dt>{{ i18n.translate('organization.language') }}</dt>
+            <dd>{{ settings()?.defaultLocale }}</dd>
+          </div>
+        </dl>
+      </article>
+      <article class="readiness-card">
+        <span class="status-dot"></span>
+        <div>
+          <small>{{ i18n.translate('organization.multicampus') }}</small>
+          <strong>{{ i18n.translate('organization.ready') }}</strong>
+        </div>
+        <p>{{ i18n.translate('organization.readyText') }}</p>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <form class="panel" [formGroup]="organizationForm" (ngSubmit)="saveOrganization()">
+        <div class="panel-head">
+          <div>
+            <p class="section-index">01</p>
+            <h2>{{ i18n.translate('organization.identity') }}</h2>
+          </div>
+          <button mat-stroked-button type="submit" [disabled]="saving()">
+            {{ i18n.translate('common.save') }}
+          </button>
+        </div>
+        <div class="form-grid">
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.code') }}</mat-label
+            ><input matInput formControlName="code"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+            ><input matInput formControlName="name"
+          /></mat-form-field>
+          <mat-form-field appearance="outline" class="wide"
+            ><mat-label>{{ i18n.translate('organization.legalName') }}</mat-label
+            ><input matInput formControlName="legalName"
+          /></mat-form-field>
+          <mat-form-field appearance="outline" class="wide"
+            ><mat-label>{{ i18n.translate('organization.address') }}</mat-label
+            ><input matInput formControlName="addressLine1"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.city') }}</mat-label
+            ><input matInput formControlName="city"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.region') }}</mat-label
+            ><input matInput formControlName="region"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.phone') }}</mat-label
+            ><input matInput formControlName="phone"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.email') }}</mat-label
+            ><input matInput formControlName="email"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>ICE</mat-label><input matInput formControlName="ice"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.postal') }}</mat-label
+            ><input matInput formControlName="postalCode"
+          /></mat-form-field>
+        </div>
+      </form>
+
+      <form class="panel" [formGroup]="settingsForm" (ngSubmit)="saveSettings()">
+        <div class="panel-head">
+          <div>
+            <p class="section-index">02</p>
+            <h2>{{ i18n.translate('organization.settings') }}</h2>
+          </div>
+          <button mat-stroked-button type="submit" [disabled]="saving()">
+            {{ i18n.translate('common.save') }}
+          </button>
+        </div>
+        <div class="form-grid">
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.language') }}</mat-label
+            ><mat-select formControlName="defaultLocale"
+              ><mat-option value="fr-MA">Français</mat-option
+              ><mat-option value="ar-MA">العربية</mat-option></mat-select
+            ></mat-form-field
+          >
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.currency') }}</mat-label
+            ><input matInput formControlName="currencyCode"
+          /></mat-form-field>
+          <mat-form-field appearance="outline" class="wide"
+            ><mat-label>{{ i18n.translate('organization.timezone') }}</mat-label
+            ><input matInput formControlName="timezone"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.startTime') }}</mat-label
+            ><input matInput type="time" formControlName="dayStartsAt"
+          /></mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>{{ i18n.translate('organization.endTime') }}</mat-label
+            ><input matInput type="time" formControlName="dayEndsAt"
+          /></mat-form-field>
+          <mat-form-field appearance="outline" class="wide"
+            ><mat-label>{{ i18n.translate('organization.calendar') }}</mat-label
+            ><textarea matInput rows="3" formControlName="calendarNotes"></textarea>
+          </mat-form-field>
+        </div>
+      </form>
+    </section>
+
+    <section class="campus-section">
+      <div class="section-title">
+        <div>
+          <p class="section-index">03</p>
+          <h2>{{ i18n.translate('organization.campuses') }}</h2>
+        </div>
+        <span>{{ campuses().length }}</span>
+      </div>
+      <div class="campus-grid">
+        @for (campus of campuses(); track campus.id; let index = $index) {
+          <article class="campus-card">
+            <div class="campus-number">0{{ index + 1 }}</div>
+            <span class="active-pill">{{
+              campus.active ? i18n.translate('organization.active') : '—'
+            }}</span>
+            <h3>{{ campus.name }}</h3>
+            <p>{{ campus.addressLine1 }} · {{ campus.city }}</p>
+            <footer>
+              <span>{{ campus.code }}</span
+              ><span>{{ campus.locale }}</span
+              ><span
+                >{{ campus.offeredGradeLevelIds.length }}
+                {{ i18n.translate('organization.levels') }}</span
+              >
+            </footer>
+          </article>
+        }
+      </div>
+    </section>
+  }
+</main>
+
+@if (showCampusForm()) {
+  <button
+    class="scrim"
+    type="button"
+    (click)="showCampusForm.set(false)"
+    aria-label="Fermer"
+  ></button>
+  <aside class="drawer">
+    <header>
+      <div>
+        <p class="eyebrow">{{ i18n.translate('organization.multicampus') }}</p>
+        <h2>{{ i18n.translate('organization.addCampus') }}</h2>
+      </div>
+      <button type="button" (click)="showCampusForm.set(false)">×</button>
+    </header>
+    <form [formGroup]="campusForm" (ngSubmit)="createCampus()" class="drawer-form">
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ i18n.translate('organization.code') }}</mat-label
+        ><input matInput formControlName="code"
+      /></mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ i18n.translate('organization.name') }}</mat-label
+        ><input matInput formControlName="name"
+      /></mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ i18n.translate('organization.address') }}</mat-label
+        ><input matInput formControlName="addressLine1"
+      /></mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ i18n.translate('organization.city') }}</mat-label
+        ><input matInput formControlName="city"
+      /></mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ i18n.translate('organization.phone') }}</mat-label
+        ><input matInput formControlName="phone"
+      /></mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ i18n.translate('organization.email') }}</mat-label
+        ><input matInput formControlName="email"
+      /></mat-form-field>
+      <button mat-flat-button type="submit" [disabled]="saving()">
+        {{ i18n.translate('organization.createCampus') }}
+      </button>
+    </form>
+  </aside>
+}

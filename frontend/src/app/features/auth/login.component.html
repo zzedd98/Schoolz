@@ -1,0 +1,171 @@
+<main class="auth-page">
+  <section class="story-panel">
+    <div class="story-top">
+      <a class="brand" href="/" aria-label="SchoolZ">
+        <span class="brand-mark" aria-hidden="true"><b>S</b><b>Z</b></span>
+        <span>SchoolZ</span>
+      </a>
+      <div class="locale-switch" [attr.aria-label]="i18n.translate('common.language')">
+        <button
+          type="button"
+          [class.active]="i18n.locale() === 'fr-MA'"
+          (click)="i18n.setLocale('fr-MA')"
+        >
+          FR
+        </button>
+        <button
+          type="button"
+          lang="ar"
+          [class.active]="i18n.locale() === 'ar-MA'"
+          (click)="i18n.setLocale('ar-MA')"
+        >
+          العربية
+        </button>
+      </div>
+    </div>
+
+    <div class="story-copy">
+      <p class="eyebrow">{{ i18n.translate('auth.eyebrow') }}</p>
+      <h1>{{ i18n.translate('auth.securityTitle') }}</h1>
+      <ul>
+        <li><span>01</span>{{ i18n.translate('auth.securityAccess') }}</li>
+        <li><span>02</span>{{ i18n.translate('auth.securityRefresh') }}</li>
+        <li><span>03</span>{{ i18n.translate('auth.securityTenant') }}</li>
+      </ul>
+    </div>
+
+    <div class="story-decoration" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  </section>
+
+  <section class="form-panel">
+    <div class="login-card">
+      <header>
+        <p class="eyebrow">{{ i18n.translate('auth.eyebrow') }}</p>
+        <h2>{{ i18n.translate('auth.title') }}</h2>
+        <p>{{ i18n.translate('auth.subtitle') }}</p>
+      </header>
+
+      @if (familyPortalRequested) {
+        <p class="portal-context" role="status">
+          {{ i18n.translate('auth.familyContext') }}
+        </p>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('auth.tenant') }}</mat-label>
+          <input
+            matInput
+            autocomplete="organization"
+            formControlName="tenantSlug"
+            placeholder="ecole-demo"
+          />
+          <mat-hint>
+            {{
+              rememberedTenant
+                ? i18n.translate('auth.tenantRemembered')
+                : i18n.translate('auth.tenantHint')
+            }}
+          </mat-hint>
+          @if (form.controls.tenantSlug.hasError('pattern')) {
+            <mat-error>{{ i18n.translate('auth.tenantError') }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('auth.email') }}</mat-label>
+          <input matInput type="email" autocomplete="username" formControlName="email" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ i18n.translate('auth.password') }}</mat-label>
+          <input
+            matInput
+            type="password"
+            autocomplete="current-password"
+            formControlName="password"
+          />
+        </mat-form-field>
+
+        <div class="form-meta">
+          <a routerLink="/forgot-password">{{ i18n.translate('auth.forgot') }}</a>
+        </div>
+
+        @if (failed()) {
+          <p class="form-error" role="alert">{{ i18n.translate('auth.error') }}</p>
+        }
+
+        <button mat-flat-button class="submit-button" type="submit" [disabled]="submitting()">
+          @if (submitting()) {
+            <mat-spinner diameter="20"></mat-spinner>
+          } @else {
+            <span>{{ i18n.translate('auth.submit') }}</span>
+            <span aria-hidden="true">→</span>
+          }
+        </button>
+      </form>
+
+      @if (demoAccounts; as demo) {
+        <aside class="demo-card">
+          <div>
+            <span class="demo-pulse" aria-hidden="true"></span>
+            <div>
+              <strong>{{ i18n.translate('auth.demoTitle') }}</strong>
+              <p>{{ i18n.translate('auth.demoText') }}</p>
+            </div>
+          </div>
+          <dl>
+            <div>
+              <dt>{{ i18n.translate('auth.demoTenant') }}</dt>
+              <dd>{{ demo.tenantSlug }}</dd>
+            </div>
+            <div>
+              <dt>{{ i18n.translate('auth.demoEmail') }}</dt>
+              <dd>{{ demo.admin.email }}</dd>
+            </div>
+            <div>
+              <dt>{{ i18n.translate('auth.demoPassword') }}</dt>
+              <dd>{{ demo.admin.password }}</dd>
+            </div>
+            <div>
+              <dt>{{ i18n.translate('auth.teacherAccount') }}</dt>
+              <dd>{{ demo.teacher.email }}</dd>
+            </div>
+            <div>
+              <dt>{{ i18n.translate('auth.demoPassword') }}</dt>
+              <dd>{{ demo.teacher.password }}</dd>
+            </div>
+            <div>
+              <dt>Compte élève</dt>
+              <dd>{{ demo.student.email }}</dd>
+            </div>
+            <div>
+              <dt>{{ i18n.translate('auth.demoPassword') }}</dt>
+              <dd>{{ demo.student.password }}</dd>
+            </div>
+            <div>
+              <dt>{{ i18n.translate('auth.parentAccount') }}</dt>
+              <dd>{{ demo.parent.email }}</dd>
+            </div>
+            <div>
+              <dt>{{ i18n.translate('auth.demoPassword') }}</dt>
+              <dd>{{ demo.parent.password }}</dd>
+            </div>
+          </dl>
+          <button mat-stroked-button type="button" (click)="useDemo(demo.admin)">
+            {{ i18n.translate('auth.useDemo') }}
+          </button>
+          <button mat-stroked-button type="button" (click)="useDemo(demo.teacher)">
+            {{ i18n.translate('auth.useTeacherDemo') }}
+          </button>
+          <button mat-stroked-button type="button" (click)="useDemo(demo.student)">
+            Tester le portail élève
+          </button>
+          <button mat-stroked-button type="button" (click)="useDemo(demo.parent)">
+            {{ i18n.translate('auth.useParentDemo') }}
+          </button>
+        </aside>
+      }
+    </div>
+  </section>
+</main>

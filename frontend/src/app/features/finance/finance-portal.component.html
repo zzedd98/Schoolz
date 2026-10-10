@@ -1,0 +1,415 @@
+<div class="family-finance">
+  <header class="public-head">
+    <a routerLink="/family" class="brand"
+      ><span><b>S</b><b>Z</b></span
+      ><strong>SchoolZ</strong></a
+    >
+    <nav>
+      <a routerLink="/family">{{ text('Accueil famille', 'فضاء الأسرة') }}</a
+      ><button type="button" (click)="toggleLocale()">
+        {{ i18n.locale() === 'ar-MA' ? 'FR' : 'ع' }}
+      </button>
+      @if (ledger()) {
+        <button type="button" class="logout" (click)="logout()">
+          {{ text('Déconnexion', 'خروج') }}
+        </button>
+      }
+    </nav>
+  </header>
+
+  @if (authRequired()) {
+    <main class="login-shell" aria-busy="true">
+      <section class="login-card">
+        <h1>{{ text('Session expirée', 'انتهت صلاحية الجلسة') }}</h1>
+        <p>
+          {{
+            text('Redirection vers la connexion sécurisée…', 'جار التحويل إلى صفحة الدخول الآمنة…')
+          }}
+        </p>
+      </section>
+    </main>
+  } @else if (ledger(); as finance) {
+    <main class="finance-shell">
+      <section class="welcome">
+        <div>
+          <p class="eyebrow">
+            {{ text('Compte famille', 'حساب الأسرة') }} · {{ finance.account.accountNumber }}
+          </p>
+          <h1>{{ text('Bonjour,', 'مرحبا،') }} {{ finance.account.displayName }}</h1>
+          <p>
+            {{
+              text(
+                'Situation mise à jour à partir des écritures validées de l’établissement.',
+                'الوضعية محينة انطلاقا من القيود المؤكدة للمؤسسة.'
+              )
+            }}
+          </p>
+        </div>
+        <div class="secure-note">
+          <span>✓</span>
+          <div>
+            <strong>{{ text('Données vérifiées', 'بيانات موثقة') }}</strong
+            ><small>{{
+              text('Session privée · aucun cache API', 'جلسة خاصة · دون تخزين للبيانات')
+            }}</small>
+          </div>
+        </div>
+      </section>
+
+      @if (error()) {
+        <div class="banner-error">{{ error() }}</div>
+      }
+
+      <section class="balance-card">
+        <div class="balance-main">
+          <small>{{ text('Reste à payer', 'المبلغ المتبقي') }}</small
+          ><strong>{{ finance.summary.balance | number: '1.2-2' }} <span>MAD</span></strong>
+          <p>
+            {{
+              text(
+                'Après paiements, avoirs, remboursements et ajustements validés',
+                'بعد الدفعات والإشعارات الدائنة والتسويات المؤكدة'
+              )
+            }}
+          </p>
+        </div>
+        <div class="balance-stats">
+          <article>
+            <span>{{ text('Total', 'الإجمالي') }}</span
+            ><b>{{ finance.summary.totalBilled | number: '1.2-2' }} MAD</b>
+          </article>
+          <article>
+            <span>{{ text('Payé', 'المؤدى') }}</span
+            ><b>{{ finance.summary.totalPaid | number: '1.2-2' }} MAD</b>
+          </article>
+          <article>
+            <span>{{ text('Avoirs', 'الرصيد الدائن') }}</span
+            ><b>{{ finance.summary.totalCredits | number: '1.2-2' }} MAD</b>
+          </article>
+        </div>
+        <div class="balance-art">
+          <i></i><i></i><span>س<br />F</span>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="main-column">
+          <section class="card invoices-card">
+            <header>
+              <div>
+                <small>{{ text('Documents financiers', 'الوثائق المالية') }}</small>
+                <h2>{{ text('Mes factures', 'فواتيري') }}</h2>
+              </div>
+              <span>{{ finance.invoices.length }}</span>
+            </header>
+            <div class="invoice-list">
+              @for (invoice of finance.invoices; track invoice.id) {
+                <button type="button" (click)="selectedInvoice.set(invoice)">
+                  <span class="doc-icon">▤</span
+                  ><span class="invoice-name"
+                    ><strong>{{ invoice.invoiceNumber }}</strong
+                    ><small
+                      >{{ invoice.issueDate | date: 'dd MMMM yyyy' }} ·
+                      {{ invoice.lines.length }} ligne(s)</small
+                    ></span
+                  ><span class="invoice-sum"
+                    ><strong>{{ invoice.totalAmount | number: '1.2-2' }} MAD</strong
+                    ><small
+                      >{{ text('Reste', 'الباقي') }}
+                      {{ invoice.balanceAmount | number: '1.2-2' }}</small
+                    ></span
+                  ><span class="status" [attr.data-status]="invoice.status">{{
+                    statusLabel(invoice.status)
+                  }}</span
+                  ><span class="arrow">›</span>
+                </button>
+              } @empty {
+                <div class="empty">
+                  {{ text('Aucune facture publiée.', 'لا توجد فاتورة منشورة.') }}
+                </div>
+              }
+            </div>
+          </section>
+
+          <section class="card family-plans-card">
+            <header>
+              <div>
+                <small>{{ text('Calendrier de paiement', 'جدولة الأداء') }}</small>
+                <h2>{{ text('Mes échéances', 'مواعيد أدائي') }}</h2>
+              </div>
+              <span>{{ installmentPlans().length }}</span>
+            </header>
+            <div class="family-plan-list">
+              @for (plan of installmentPlans(); track plan.id) {
+                <article>
+                  <div class="family-plan-head">
+                    <span>{{ plan.frequency.slice(0, 1) }}</span>
+                    <div>
+                      <strong>{{ plan.planNumber }}</strong
+                      ><small
+                        >{{ plan.name }} · {{ plan.paidAmount | number: '1.2-2' }} /
+                        {{ plan.totalAmount | number: '1.2-2' }} MAD</small
+                      >
+                    </div>
+                    <b>{{ plan.remainingAmount | number: '1.2-2' }} MAD</b>
+                  </div>
+                  <div class="family-schedules">
+                    @for (schedule of plan.schedules; track schedule.id) {
+                      <div [attr.data-status]="schedule.status">
+                        <span
+                          ><strong>{{ schedule.dueDate | date: 'dd/MM/yyyy' }}</strong
+                          ><small>{{
+                            schedule.daysOverdue > 0
+                              ? schedule.daysOverdue + ' j'
+                              : '#' + schedule.position
+                          }}</small></span
+                        ><b>{{ schedule.amount | number: '1.2-2' }} MAD</b
+                        ><em>{{ statusLabel(schedule.status) }}</em>
+                      </div>
+                    }
+                  </div>
+                </article>
+              } @empty {
+                <div class="empty">
+                  {{ text('Aucun échéancier actif.', 'لا توجد جدولة نشطة.') }}
+                </div>
+              }
+            </div>
+          </section>
+
+          <section class="card ledger-card">
+            <header>
+              <div>
+                <small>{{ text('Historique inaltérable', 'سجل غير قابل للمحو') }}</small>
+                <h2>{{ text('Mouvements du compte', 'حركات الحساب') }}</h2>
+              </div>
+            </header>
+            <div class="entry-list">
+              @for (entry of finance.entries; track entry.id) {
+                <article>
+                  <span class="entry-icon" [class.credit]="entry.amount < 0">{{
+                    entry.amount < 0 ? '↓' : '↑'
+                  }}</span>
+                  <div>
+                    <strong>{{ entry.label }}</strong
+                    ><small
+                      >{{ entry.reference }} ·
+                      {{ entry.occurredAt | date: 'dd/MM/yyyy, HH:mm' }}</small
+                    >
+                  </div>
+                  <b [class.credit]="entry.amount < 0"
+                    >{{ entry.amount > 0 ? '+' : '' }}{{ entry.amount | number: '1.2-2' }} MAD</b
+                  ><span class="running"
+                    >{{ text('Solde', 'الرصيد') }} {{ entry.balanceAfter | number: '1.2-2' }}</span
+                  >
+                </article>
+              } @empty {
+                <div class="empty">{{ text('Aucun mouvement.', 'لا توجد حركة.') }}</div>
+              }
+            </div>
+          </section>
+        </div>
+
+        <aside class="side-column">
+          <section class="card receipts-card">
+            <header>
+              <div>
+                <small>{{ text('Justificatifs', 'الإثباتات') }}</small>
+                <h2>{{ text('Mes reçus', 'إيصالاتي') }}</h2>
+              </div>
+              <span>{{ finance.receipts.length }}</span>
+            </header>
+            <div class="receipt-list">
+              @for (receipt of finance.receipts; track receipt.id) {
+                <button type="button" (click)="showReceipt(receipt.id)">
+                  <span class="receipt-icon">R</span
+                  ><span
+                    ><strong>{{ receipt.receiptNumber }}</strong
+                    ><small
+                      >{{ receipt.issuedAt | date: 'dd/MM/yyyy' }} ·
+                      {{ receipt.paymentMethod }}</small
+                    ></span
+                  ><b>{{ receipt.amount | number: '1.2-2' }} MAD</b>
+                </button>
+              } @empty {
+                <div class="empty">{{ text('Aucun reçu.', 'لا يوجد إيصال.') }}</div>
+              }
+            </div>
+          </section>
+          @if (sandboxPayments) {
+            <section class="online-card">
+              <div class="online-mark">J17</div>
+              <small>{{ text('Paiement en ligne', 'الأداء عبر الإنترنت') }}</small>
+              <h2>{{ text('Sandbox sécurisé', 'فضاء أداء تجريبي آمن') }}</h2>
+              <p>
+                {{
+                  text(
+                    'Une intention idempotente, un webhook signé et un reçu SchoolZ après confirmation.',
+                    'طلب أداء غير قابل للتكرار، وإشعار موقع، ثم وصل SchoolZ بعد التأكيد.'
+                  )
+                }}
+              </p>
+              @if (onlinePayments().at(0); as payment) {
+                <article [attr.data-status]="payment.status">
+                  <span
+                    ><strong>{{ payment.amount | number: '1.2-2' }} MAD</strong
+                    ><small>{{ payment.invoiceNumber || payment.planNumber }}</small></span
+                  ><em>{{ statusLabel(payment.status) }}</em>
+                </article>
+                @if (payment.status === 'PENDING' || payment.status === 'AUTHORIZED') {
+                  <button
+                    type="button"
+                    (click)="completeSandboxPayment(payment)"
+                    [disabled]="busy()"
+                  >
+                    {{ text('Simuler le succès signé', 'محاكاة نجاح موقع') }}
+                  </button>
+                } @else if (payableInvoice()) {
+                  <button type="button" (click)="initializeOnlinePayment()" [disabled]="busy()">
+                    {{ text('Préparer un nouveau paiement', 'إعداد أداء جديد') }}
+                  </button>
+                }
+              } @else if (payableInvoice()) {
+                <button type="button" (click)="initializeOnlinePayment()" [disabled]="busy()">
+                  {{ text('Préparer mon paiement sandbox', 'إعداد أدائي التجريبي') }}
+                </button>
+              } @else {
+                <strong class="online-settled">{{ text('Compte à jour', 'الحساب مؤدى') }}</strong>
+              }
+              <span class="sandbox-disclaimer">{{
+                text(
+                  'Démonstration locale · aucun débit bancaire réel',
+                  'نسخة محلية · دون خصم بنكي حقيقي'
+                )
+              }}</span>
+            </section>
+          }
+          <section class="help-card">
+            <span>?</span>
+            <div>
+              <small>{{ text('Une question ?', 'لديكم سؤال؟') }}</small
+              ><strong>{{ text('Contactez la comptabilité', 'تواصلوا مع المحاسبة') }}</strong>
+              <p>
+                {{
+                  text(
+                    'Mentionnez le numéro de facture ou de reçu affiché ici.',
+                    'اذكروا رقم الفاتورة أو الإيصال المعروض هنا.'
+                  )
+                }}
+              </p>
+            </div>
+          </section>
+          <section class="next-card">
+            <small>J17</small
+            ><strong>{{ text('Paiement en ligne disponible', 'الأداء عبر الإنترنت متاح') }}</strong>
+            <p>
+              {{
+                text(
+                  'Chaque confirmation est automatiquement rattachée à la facture concernée.',
+                  'يتم ربط كل تأكيد تلقائياً بالفاتورة المعنية.'
+                )
+              }}
+            </p>
+          </section>
+        </aside>
+      </section>
+    </main>
+  } @else {
+    <div class="loading">{{ text('Chargement de votre compte…', 'جار تحميل حسابكم…') }}</div>
+  }
+
+  @if (selectedInvoice(); as invoice) {
+    <div class="modal">
+      <section class="invoice-detail">
+        <header>
+          <div>
+            <small>{{ statusLabel(invoice.status) }}</small>
+            <h2>{{ invoice.invoiceNumber }}</h2>
+            <p>
+              {{ invoice.issueDate | date: 'dd MMMM yyyy' }} →
+              {{ invoice.dueDate | date: 'dd MMMM yyyy' }}
+            </p>
+          </div>
+          <button type="button" (click)="selectedInvoice.set(null)">×</button>
+        </header>
+        <div class="detail-lines">
+          @for (line of invoice.lines; track line.id) {
+            <article>
+              <div>
+                <span>{{ line.serviceType }}</span
+                ><strong>{{ line.label }}</strong
+                ><small>{{ line.studentName || ledger()?.account?.displayName }}</small>
+              </div>
+              <div class="line-total">
+                @if (line.discountAmount > 0) {
+                  <small
+                    >{{ line.grossAmount | number: '1.2-2' }} − {{ text('remise', 'خصم') }}
+                    {{ line.discountAmount | number: '1.2-2' }}</small
+                  >
+                }
+                <b>{{ line.lineTotal | number: '1.2-2' }} MAD</b>
+              </div>
+            </article>
+          }
+        </div>
+        <footer>
+          <span>{{ text('Total de la facture', 'مجموع الفاتورة') }}</span
+          ><strong>{{ invoice.totalAmount | number: '1.2-2' }} MAD</strong
+          ><span>{{ text('Déjà réglé', 'المؤدى') }}</span
+          ><strong>{{ invoice.paidAmount | number: '1.2-2' }} MAD</strong
+          ><span class="rest">{{ text('Reste', 'الباقي') }}</span
+          ><strong class="rest">{{ invoice.balanceAmount | number: '1.2-2' }} MAD</strong>
+        </footer>
+      </section>
+    </div>
+  }
+
+  @if (selectedReceipt(); as receipt) {
+    <div class="modal receipt-modal">
+      <section class="receipt-paper">
+        <button class="close" type="button" (click)="selectedReceipt.set(null)">×</button>
+        <div class="receipt-brand">
+          <span>SZ</span><strong>SchoolZ</strong
+          ><small>{{ text('Reçu de paiement', 'وصل الأداء') }}</small>
+        </div>
+        <div class="receipt-number">
+          <small>{{ text('Numéro unique', 'الرقم الفريد') }}</small
+          ><strong>{{ receipt.receiptNumber }}</strong>
+        </div>
+        <dl>
+          <div>
+            <dt>{{ text('Paiement', 'الأداء') }}</dt>
+            <dd>{{ receipt.paymentNumber }}</dd>
+          </div>
+          <div>
+            <dt>{{ text('Date', 'التاريخ') }}</dt>
+            <dd>{{ receipt.issuedAt | date: 'dd/MM/yyyy, HH:mm' }}</dd>
+          </div>
+          <div>
+            <dt>{{ text('Mode', 'الطريقة') }}</dt>
+            <dd>{{ receipt.paymentMethod }}</dd>
+          </div>
+          <div>
+            <dt>{{ text('Statut', 'الحالة') }}</dt>
+            <dd>{{ statusLabel(receipt.status) }}</dd>
+          </div>
+        </dl>
+        <div class="receipt-amount">
+          <small>{{ text('Montant reçu', 'المبلغ المؤدى') }}</small
+          ><strong>{{ receipt.amount | number: '1.2-2' }} <span>MAD</span></strong>
+        </div>
+        <p>
+          {{
+            text(
+              'Ce reçu correspond à une écriture validée. Toute annulation reste visible par une écriture inverse.',
+              'هذا الوصل مرتبط بقيد مؤكد. وكل إلغاء يبقى ظاهرا بواسطة قيد عكسي.'
+            )
+          }}
+        </p>
+        <button type="button" class="print" (click)="printReceipt()">
+          {{ text('Imprimer ce reçu', 'طباعة الوصل') }}
+        </button>
+      </section>
+    </div>
+  }
+</div>

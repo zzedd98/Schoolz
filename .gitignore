@@ -1,0 +1,42 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.local
+
+# Java / Maven
+backend/target/
+backend/.m2/
+backend/.pdfbox.cache
+backend/.testcontainers.properties
+build/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+
+# Angular / Node
+frontend/node_modules/
+node_modules/
+.pnpm-store/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+frontend/.nx/
+npm-debug.log*
+
+# IDE and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Runtime data
+data/
+logs/
+tmp/
+backups/
+output/
+outputs/
+.docker-*.log
+*.log

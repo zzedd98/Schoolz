@@ -1,0 +1,510 @@
+<main class="hr-page">
+  @if (loading() && !dashboard()) {
+    <div class="page-state">Ouverture de l’espace Ressources humaines…</div>
+  } @else if (failed() || !dashboard()) {
+    <div class="page-state error">L’espace RH ne peut pas être chargé.</div>
+  } @else {
+    @let data = dashboard()!;
+    <header class="hr-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Une personne, un dossier</p>
+        <h1>Les équipes font <i>l’école.</i></h1>
+        <p>
+          Contrats, organisation, temps de travail et congés réunis autour de la personne déjà
+          connue de SchoolZ.
+        </p>
+      </div>
+      <div class="people-orbit" aria-hidden="true">
+        @for (employee of data.employees.slice(0, 4); track employee.id; let index = $index) {
+          <span [class]="'person person-' + index">{{ initials(employee.displayName) }}</span>
+        }
+        <strong>{{ data.employees.length }}</strong>
+        <small>collaborateurs</small>
+      </div>
+      <div class="hero-pulse">
+        <div>
+          <strong>{{ presentToday() }}/{{ data.employees.length }}</strong
+          ><span>présents aujourd’hui</span>
+        </div>
+        <div>
+          <strong>{{ pendingLeaves() }}</strong
+          ><span>congé(s) à traiter</span>
+        </div>
+        <div>
+          <strong>{{ data.expiringDocuments }}</strong
+          ><span>document(s) à renouveler</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="hr-navigation" aria-label="Rubriques Ressources humaines">
+      <button
+        type="button"
+        [class.active]="activeView() === 'team'"
+        (click)="activeView.set('team')"
+      >
+        <span>01</span> Équipe
+      </button>
+      <button
+        type="button"
+        [class.active]="activeView() === 'leaves'"
+        (click)="activeView.set('leaves')"
+      >
+        <span>02</span> Congés <b>{{ pendingLeaves() }}</b>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeView() === 'attendance'"
+        (click)="activeView.set('attendance')"
+      >
+        <span>03</span> Présence
+      </button>
+      <button
+        type="button"
+        [class.active]="activeView() === 'structure'"
+        (click)="activeView.set('structure')"
+      >
+        <span>04</span> Organisation
+      </button>
+    </nav>
+
+    @switch (activeView()) {
+      @case ('team') {
+        <section class="team-flow">
+          <aside class="team-directory">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Annuaire vivant</p>
+                <h2>Notre équipe</h2>
+              </div>
+              <span>{{ data.employees.length }}</span>
+            </div>
+            <div class="employee-list">
+              @for (employee of data.employees; track employee.id; let index = $index) {
+                <button
+                  type="button"
+                  [class.active]="selectedEmployeeId() === employee.id"
+                  (click)="openEmployee(employee.id)"
+                >
+                  <small>0{{ index + 1 }}</small>
+                  <i>{{ initials(employee.displayName) }}</i>
+                  <span
+                    ><strong>{{ employee.displayName }}</strong
+                    ><em>{{ employee.positionTitle ?? employee.jobTitle }}</em></span
+                  >
+                  <b>→</b>
+                </button>
+              }
+            </div>
+          </aside>
+
+          <div class="employee-stage">
+            @if (recordLoading()) {
+              <div class="record-state">Ouverture du dossier collaborateur…</div>
+            } @else if (record()) {
+              @let profile = record()!;
+              <header class="employee-identity">
+                <div class="identity-main">
+                  <span>{{ initials(profile.employee.displayName) }}</span>
+                  <div>
+                    <p class="eyebrow">{{ profile.employee.employeeNumber }}</p>
+                    <h2>{{ profile.employee.displayName }}</h2>
+                    <p>
+                      {{ profile.employee.positionTitle ?? profile.employee.jobTitle }} ·
+                      {{ profile.employee.departmentName }}
+                    </p>
+                  </div>
+                </div>
+                <div class="identity-links">
+                  <small>Person unique</small>
+                  <strong>Reliée au dossier central ✓</strong>
+                  <button type="button" (click)="openLeaveDrawer(profile.employee)">
+                    + Demande de congé
+                  </button>
+                </div>
+              </header>
+
+              <div class="employee-facts">
+                <div>
+                  <span>Manager</span
+                  ><strong>{{ profile.employee.managerName ?? 'Direction' }}</strong>
+                </div>
+                <div>
+                  <span>Arrivée</span
+                  ><strong>{{ profile.employee.joinedOn | date: 'dd MMM yyyy' }}</strong>
+                </div>
+                <div>
+                  <span>Contact</span
+                  ><strong>{{ profile.employee.workEmail ?? 'À compléter' }}</strong>
+                </div>
+              </div>
+
+              <nav class="employee-tabs" aria-label="Dossier RH du collaborateur">
+                <button
+                  type="button"
+                  [class.active]="employeeTab() === 'contract'"
+                  (click)="employeeTab.set('contract')"
+                >
+                  Contrat
+                </button>
+                <button
+                  type="button"
+                  [class.active]="employeeTab() === 'schedule'"
+                  (click)="employeeTab.set('schedule')"
+                >
+                  Horaires
+                </button>
+                <button
+                  type="button"
+                  [class.active]="employeeTab() === 'documents'"
+                  (click)="employeeTab.set('documents')"
+                >
+                  Documents
+                </button>
+                <button
+                  type="button"
+                  [class.active]="employeeTab() === 'qualifications'"
+                  (click)="employeeTab.set('qualifications')"
+                >
+                  Qualifications
+                </button>
+              </nav>
+
+              @switch (employeeTab()) {
+                @case ('contract') {
+                  <div class="detail-lines">
+                    @for (contract of profile.contracts; track contract.id) {
+                      <article>
+                        <span>Contrat actif</span>
+                        <h3>{{ contract.contractNumber }}</h3>
+                        <p>{{ contract.contractType }} · {{ contract.weeklyHours }} h/semaine</p>
+                        <time>Depuis le {{ contract.startsOn | date: 'dd/MM/yyyy' }}</time>
+                      </article>
+                    } @empty {
+                      <p class="empty">Aucun contrat enregistré.</p>
+                    }
+                  </div>
+                }
+                @case ('schedule') {
+                  <div class="week-rhythm">
+                    @for (schedule of profile.schedules; track schedule.id) {
+                      <div>
+                        <span>J{{ schedule.dayOfWeek }}</span
+                        ><strong
+                          >{{ schedule.startsAt.slice(0, 5) }} —
+                          {{ schedule.endsAt.slice(0, 5) }}</strong
+                        ><small>{{ schedule.breakMinutes }} min de pause</small>
+                      </div>
+                    } @empty {
+                      <p class="empty">Aucun horaire configuré.</p>
+                    }
+                  </div>
+                }
+                @case ('documents') {
+                  <div class="detail-lines">
+                    @for (document of profile.documents; track document.id) {
+                      <article>
+                        <span>{{ document.documentType }}</span>
+                        <h3>{{ document.fileName }}</h3>
+                        <p class="status" [class.warning]="document.status !== 'VALID'">
+                          {{ document.status }}
+                        </p>
+                        <time>Expiration {{ document.expiresOn | date: 'dd/MM/yyyy' }}</time>
+                      </article>
+                    } @empty {
+                      <p class="empty">Aucun document RH.</p>
+                    }
+                  </div>
+                }
+                @case ('qualifications') {
+                  <div class="detail-lines">
+                    @for (qualification of profile.qualifications; track qualification.id) {
+                      <article>
+                        <span>{{ qualification.qualificationType }}</span>
+                        <h3>{{ qualification.title }}</h3>
+                        <p>{{ qualification.institution }} · {{ qualification.subjectArea }}</p>
+                        <time>{{ qualification.verified ? 'Vérifiée ✓' : 'À vérifier' }}</time>
+                      </article>
+                    } @empty {
+                      <p class="empty">Aucune qualification enseignante.</p>
+                    }
+                  </div>
+                }
+              }
+            }
+          </div>
+        </section>
+      }
+
+      @case ('leaves') {
+        <section class="leave-space">
+          <header class="flow-heading">
+            <div>
+              <p class="eyebrow">Workflow contrôlé</p>
+              <h2>Congés & validations</h2>
+            </div>
+            <button type="button" class="primary-action" (click)="openLeaveDrawer()">
+              + Nouvelle demande
+            </button>
+          </header>
+          <div class="workflow-ribbon" aria-label="Étapes du workflow congé">
+            <div><span>01</span><strong>Demande reçue</strong></div>
+            <i>→</i>
+            <div><span>02</span><strong>Revue manager</strong></div>
+            <i>→</i>
+            <div><span>03</span><strong>Décision</strong></div>
+          </div>
+          <div class="leave-list">
+            @for (leave of data.leaveRequests; track leave.id) {
+              <article [class]="'leave-' + leave.status.toLowerCase()">
+                <div class="leave-date">
+                  <strong>{{ leave.startsOn | date: 'dd' }}</strong
+                  ><span>{{ leave.startsOn | date: 'MMM' }}</span>
+                </div>
+                <div class="leave-main">
+                  <small>{{ leave.leaveType }}</small>
+                  <h3>{{ leave.employeeName }}</h3>
+                  <p>
+                    {{ leave.workingDays }} jour(s) · jusqu’au
+                    {{ leave.endsOn | date: 'dd/MM/yyyy' }}
+                  </p>
+                </div>
+                <span class="workflow-status">{{ statusLabel(leave.status) }}</span>
+                <div class="leave-actions">
+                  @if (leave.status === 'REQUESTED' && auth.hasPermission('hr.leave.review')) {
+                    <button type="button" (click)="managerReview(leave)" [disabled]="saving()">
+                      Envoyer en revue
+                    </button>
+                  }
+                  @if (leave.status === 'MANAGER_REVIEW' && auth.hasPermission('hr.leave.review')) {
+                    <button
+                      type="button"
+                      class="approve"
+                      (click)="decide(leave, 'APPROVED')"
+                      [disabled]="saving()"
+                    >
+                      Approuver
+                    </button>
+                    <button
+                      type="button"
+                      class="reject"
+                      (click)="decide(leave, 'REJECTED')"
+                      [disabled]="saving()"
+                    >
+                      Refuser
+                    </button>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        </section>
+      }
+
+      @case ('attendance') {
+        <section class="attendance-space">
+          <header class="flow-heading">
+            <div>
+              <p class="eyebrow">Rythme quotidien</p>
+              <h2>Présence de l’équipe</h2>
+            </div>
+            <label
+              >Journée
+              <input type="date" [(ngModel)]="attendanceDate" (change)="load(attendanceDate, true)"
+            /></label>
+          </header>
+          <div class="attendance-board">
+            @for (employee of data.employees; track employee.id; let index = $index) {
+              @let entry = attendanceFor(employee.id);
+              <article>
+                <span class="row-index">0{{ index + 1 }}</span>
+                <i>{{ initials(employee.displayName) }}</i>
+                <div>
+                  <h3>{{ employee.displayName }}</h3>
+                  <p>
+                    {{ employee.departmentName }} ·
+                    {{ entry?.checkedInAt ? (entry?.checkedInAt | date: 'HH:mm') : 'Non pointé' }}
+                  </p>
+                </div>
+                <strong
+                  [class]="'attendance-status status-' + (entry?.status ?? 'ABSENT').toLowerCase()"
+                  >{{ statusLabel(entry?.status ?? 'ABSENT') }}</strong
+                >
+                @if (auth.hasPermission('hr.attendance.manage')) {
+                  <div class="attendance-actions">
+                    <button type="button" (click)="markAttendance(employee, 'PRESENT')">
+                      Présent
+                    </button>
+                    <button type="button" (click)="markAttendance(employee, 'REMOTE')">
+                      Distance
+                    </button>
+                    <button type="button" (click)="markAttendance(employee, 'ABSENT')">
+                      Absent
+                    </button>
+                  </div>
+                }
+              </article>
+            }
+          </div>
+        </section>
+      }
+
+      @case ('structure') {
+        <section class="structure-space">
+          <header class="flow-heading">
+            <div>
+              <p class="eyebrow">Organisation claire</p>
+              <h2>Départements & postes</h2>
+            </div>
+            <div class="heading-actions">
+              <button type="button" (click)="structureDrawer.set('department')">
+                + Département</button
+              ><button type="button" (click)="structureDrawer.set('position')">+ Poste</button>
+            </div>
+          </header>
+          <div class="department-river">
+            @for (department of data.departments; track department.id; let index = $index) {
+              <article>
+                <span>0{{ index + 1 }}</span>
+                <h3>{{ department.name }}</h3>
+                <p>{{ department.employeeCount }} collaborateur(s)</p>
+                <small>{{ department.code }}</small>
+              </article>
+            }
+          </div>
+          <div class="position-lines">
+            @for (position of data.positions; track position.id) {
+              <article>
+                <span>{{ position.teacherPosition ? 'PÉDAGOGIE' : 'OPÉRATIONS' }}</span>
+                <h3>{{ position.title }}</h3>
+                <p>{{ position.departmentName ?? 'Transverse' }}</p>
+                <b>{{ position.code }}</b>
+              </article>
+            }
+          </div>
+        </section>
+      }
+    }
+
+    @if (feedback()) {
+      <div class="feedback" role="status">{{ feedback() }}</div>
+    }
+
+    @if (leaveDrawerOpen()) {
+      <button
+        type="button"
+        class="drawer-scrim"
+        aria-label="Fermer la demande"
+        (click)="leaveDrawerOpen.set(false)"
+      ></button>
+      <aside class="drawer" aria-label="Nouvelle demande de congé">
+        <header>
+          <div>
+            <p class="eyebrow">Étape 01</p>
+            <h2>Nouvelle demande</h2>
+          </div>
+          <button type="button" aria-label="Fermer" (click)="leaveDrawerOpen.set(false)">×</button>
+        </header>
+        <p class="drawer-note">
+          La demande sera créée au statut « Reçue » et ne pourra être décidée qu’après la revue
+          manager.
+        </p>
+        <div class="form-grid">
+          <label
+            >Collaborateur<select [(ngModel)]="leaveDraft.employeeId">
+              @for (employee of data.employees; track employee.id) {
+                <option [value]="employee.id">{{ employee.displayName }}</option>
+              }
+            </select></label
+          >
+          <label
+            >Type<select [(ngModel)]="leaveDraft.leaveType">
+              <option value="ANNUAL">Congé annuel</option>
+              <option value="PERSONAL">Personnel</option>
+              <option value="TRAINING">Formation</option>
+              <option value="SICK">Maladie déclarée</option>
+            </select></label
+          >
+          <label>Du<input type="date" [(ngModel)]="leaveDraft.startsOn" /></label>
+          <label>Au<input type="date" [(ngModel)]="leaveDraft.endsOn" /></label>
+          <label
+            >Jours ouvrés<input
+              type="number"
+              min="0.5"
+              step="0.5"
+              [(ngModel)]="leaveDraft.workingDays"
+          /></label>
+          <label class="wide">Motif<textarea [(ngModel)]="leaveDraft.reason"></textarea></label>
+        </div>
+        <footer>
+          <button type="button" (click)="leaveDrawerOpen.set(false)">Annuler</button
+          ><button
+            type="button"
+            class="primary-action"
+            (click)="submitLeave()"
+            [disabled]="saving()"
+          >
+            Créer la demande
+          </button>
+        </footer>
+      </aside>
+    }
+
+    @if (structureDrawer()) {
+      <button
+        type="button"
+        class="drawer-scrim"
+        aria-label="Fermer la saisie"
+        (click)="structureDrawer.set(null)"
+      ></button>
+      <aside class="drawer" aria-label="Nouvelle donnée d’organisation">
+        <header>
+          <div>
+            <p class="eyebrow">Organisation</p>
+            <h2>
+              {{ structureDrawer() === 'department' ? 'Nouveau département' : 'Nouveau poste' }}
+            </h2>
+          </div>
+          <button type="button" aria-label="Fermer" (click)="structureDrawer.set(null)">×</button>
+        </header>
+        @if (structureDrawer() === 'department') {
+          <div class="form-grid">
+            <label>Code<input [(ngModel)]="departmentDraft.code" /></label
+            ><label>Nom<input [(ngModel)]="departmentDraft.name" /></label
+            ><label class="wide"
+              >Description<textarea [(ngModel)]="departmentDraft.description"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button type="button" (click)="structureDrawer.set(null)">Annuler</button
+            ><button type="button" class="primary-action" (click)="createDepartment()">
+              Créer
+            </button>
+          </footer>
+        } @else {
+          <div class="form-grid">
+            <label>Code<input [(ngModel)]="positionDraft.code" /></label
+            ><label>Intitulé<input [(ngModel)]="positionDraft.title" /></label
+            ><label
+              >Département<select [(ngModel)]="positionDraft.departmentId">
+                <option value="">Transverse</option>
+                @for (department of data.departments; track department.id) {
+                  <option [value]="department.id">{{ department.name }}</option>
+                }
+              </select></label
+            ><label class="check"
+              ><input type="checkbox" [(ngModel)]="positionDraft.teacherPosition" /> Poste
+              enseignant</label
+            ><label class="wide"
+              >Description<textarea [(ngModel)]="positionDraft.description"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button type="button" (click)="structureDrawer.set(null)">Annuler</button
+            ><button type="button" class="primary-action" (click)="createPosition()">Créer</button>
+          </footer>
+        }
+      </aside>
+    }
+  }
+</main>

@@ -1,0 +1,621 @@
+<main class="health-page">
+  @if (loading()) {
+    <div class="page-state">Ouverture de l’espace santé sécurisé…</div>
+  } @else if (failed() || !dashboard()) {
+    <div class="page-state error">L’espace santé ne peut pas être chargé.</div>
+  } @else {
+    @let data = dashboard()!;
+    <header class="health-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Accès fortement restreint</p>
+        <h1>Santé <i>&</i> infirmerie</h1>
+        <p>
+          Un dossier factuel pour préparer, consigner et transmettre les prises en charge au sein de
+          l’établissement.
+        </p>
+      </div>
+      <div class="safety-card">
+        <span aria-hidden="true">✦</span>
+        <div>
+          <strong>Aide à la prise en charge</strong>
+          <p>{{ data.safetyNotice }}</p>
+        </div>
+      </div>
+      <div class="policy-card">
+        <div>
+          <small>Politique établissement</small>
+          <strong>Suivi des vaccinations</strong>
+        </div>
+        <button
+          type="button"
+          class="switch"
+          [class.active]="data.policy.vaccinationTrackingEnabled"
+          [disabled]="!auth.hasPermission('health.configure') || saving()"
+          (click)="toggleVaccinationPolicy()"
+          [attr.aria-pressed]="data.policy.vaccinationTrackingEnabled"
+        >
+          <span></span>
+          {{ data.policy.vaccinationTrackingEnabled ? 'Activé' : 'Désactivé' }}
+        </button>
+      </div>
+    </header>
+
+    <section class="health-pulse" aria-label="Indicateurs santé">
+      <div>
+        <span>01</span><strong>{{ countProfiles() }}</strong
+        ><small>Dossiers préparés</small>
+      </div>
+      <div>
+        <span>02</span><strong>{{ countAllergies() }}</strong
+        ><small>Allergies actives</small>
+      </div>
+      <div>
+        <span>03</span><strong>{{ countOpenIncidents() }}</strong
+        ><small>Situations à suivre</small>
+      </div>
+      <div>
+        <span>04</span><strong>{{ data.recentIncidents.length }}</strong
+        ><small>Incidents consignés</small>
+      </div>
+    </section>
+
+    <section class="health-workspace">
+      <aside class="student-rail">
+        <div class="rail-heading">
+          <div>
+            <p class="eyebrow">Dossiers élèves</p>
+            <h2>Qui accueille-t-on ?</h2>
+          </div>
+          <span>{{ data.students.length }}</span>
+        </div>
+        <div class="student-list">
+          @for (student of data.students; track student.studentId; let index = $index) {
+            <button
+              type="button"
+              [class.active]="selectedStudentId() === student.studentId"
+              (click)="selectStudent(student)"
+            >
+              <span class="student-index">{{ (index + 1).toString().padStart(2, '0') }}</span>
+              <span class="student-avatar">{{
+                student.studentName.slice(0, 2).toUpperCase()
+              }}</span>
+              <span class="student-name">
+                <strong>{{ student.studentName }}</strong>
+                <small>
+                  {{ student.profileReady ? 'Dossier préparé' : 'À compléter' }}
+                  @if (student.openIncidents) {
+                    · {{ student.openIncidents }} suivi(s)
+                  }
+                </small>
+              </span>
+              <i aria-hidden="true">→</i>
+            </button>
+          }
+        </div>
+        <p class="privacy-note">
+          <b>Accès tracé.</b> Chaque ouverture de dossier sensible est enregistrée dans le journal
+          d’audit SchoolZ.
+        </p>
+      </aside>
+
+      <div class="record-space">
+        @if (recordLoading()) {
+          <div class="record-state">Déchiffrement du dossier autorisé…</div>
+        } @else if (record()) {
+          @let health = record()!;
+          <header class="record-heading">
+            <div class="record-identity">
+              <span>{{ health.student.displayName.slice(0, 2).toUpperCase() }}</span>
+              <div>
+                <p class="eyebrow">Dossier santé confidentiel</p>
+                <h2>{{ health.student.displayName }}</h2>
+                <p>
+                  {{ health.student.classroomName ?? 'Classe non renseignée' }} · né(e) le
+                  {{ health.student.birthDate | date: 'dd/MM/yyyy' }}
+                </p>
+              </div>
+            </div>
+            <div class="record-status">
+              <span></span>
+              {{ health.profile.id ? 'Dossier actif' : 'Dossier à préparer' }}
+            </div>
+          </header>
+
+          <nav class="health-tabs" aria-label="Sections du dossier santé">
+            @for (section of sections; track section.id) {
+              <button
+                type="button"
+                [class.active]="activeSection() === section.id"
+                (click)="activeSection.set(section.id)"
+              >
+                {{ section.label }}
+                @switch (section.id) {
+                  @case ('allergies') {
+                    <span>{{ health.allergies.length }}</span>
+                  }
+                  @case ('medications') {
+                    <span>{{ health.medications.length }}</span>
+                  }
+                  @case ('incidents') {
+                    <span>{{ health.incidents.length }}</span>
+                  }
+                  @case ('visits') {
+                    <span>{{ health.visits.length }}</span>
+                  }
+                  @case ('vaccinations') {
+                    <span>{{ health.vaccinations.length }}</span>
+                  }
+                }
+              </button>
+            }
+          </nav>
+
+          <div class="record-flow">
+            @switch (activeSection()) {
+              @case ('overview') {
+                <section class="overview-flow">
+                  <article class="identity-note">
+                    <p class="panel-index">PROFIL</p>
+                    <div class="blood-mark">{{ health.profile.bloodGroup ?? '—' }}</div>
+                    <div>
+                      <h3>Repères transmis</h3>
+                      <dl>
+                        <div>
+                          <dt>Médecin référent</dt>
+                          <dd>{{ health.profile.physicianName ?? 'Non renseigné' }}</dd>
+                        </div>
+                        <div>
+                          <dt>Téléphone</dt>
+                          <dd>{{ health.profile.physicianPhone ?? 'Non renseigné' }}</dd>
+                        </div>
+                        <div>
+                          <dt>Assurance</dt>
+                          <dd>{{ health.profile.insuranceProvider ?? 'Non renseignée' }}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                    @if (auth.hasPermission('health.write')) {
+                      <button type="button" class="text-action" (click)="openEntry('profile')">
+                        Compléter le profil →
+                      </button>
+                    }
+                  </article>
+
+                  <article class="alert-note" [class.clear]="health.allergies.length === 0">
+                    <span aria-hidden="true">!</span>
+                    <div>
+                      <p class="panel-index">POINTS D’ATTENTION</p>
+                      @if (health.allergies.length) {
+                        <h3>{{ health.allergies.length }} allergie(s) consignée(s)</h3>
+                        <p>
+                          {{ health.allergies[0].allergen }} ·
+                          {{ severityLabel(health.allergies[0].severity) }}
+                        </p>
+                      } @else {
+                        <h3>Aucune allergie consignée</h3>
+                        <p>
+                          Le dossier peut être complété à partir des éléments transmis par la
+                          famille.
+                        </p>
+                      }
+                    </div>
+                  </article>
+
+                  <article class="emergency-note">
+                    <p class="panel-index">CONSIGNE D’URGENCE</p>
+                    <blockquote>
+                      {{
+                        health.profile.emergencyNotes ??
+                          'Aucune consigne particulière n’a encore été transmise.'
+                      }}
+                    </blockquote>
+                  </article>
+
+                  <article class="recent-timeline">
+                    <div class="section-title">
+                      <div>
+                        <p class="panel-index">CHRONOLOGIE</p>
+                        <h3>Derniers passages</h3>
+                      </div>
+                      <button type="button" (click)="activeSection.set('visits')">Tout voir</button>
+                    </div>
+                    @for (visit of health.visits.slice(0, 3); track visit.id) {
+                      <div class="timeline-row">
+                        <time>{{ visit.visitedAt | date: 'dd MMM · HH:mm' }}</time>
+                        <span></span>
+                        <div>
+                          <strong>{{ visit.reason }}</strong>
+                          <p>{{ visit.actionTaken ?? 'Aucune action détaillée' }}</p>
+                        </div>
+                      </div>
+                    } @empty {
+                      <p class="empty-state">Aucune visite consignée pour cet élève.</p>
+                    }
+                  </article>
+                </section>
+              }
+
+              @case ('allergies') {
+                <section class="data-section">
+                  <header>
+                    <div>
+                      <p class="eyebrow">Prévention</p>
+                      <h3>Allergies consignées</h3>
+                    </div>
+                    @if (auth.hasPermission('health.write')) {
+                      <button type="button" class="primary-action" (click)="openEntry('allergy')">
+                        + Ajouter
+                      </button>
+                    }
+                  </header>
+                  @for (allergy of health.allergies; track allergy.id; let index = $index) {
+                    <article class="data-line severity-{{ allergy.severity.toLowerCase() }}">
+                      <span class="line-index">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                      <div class="line-main">
+                        <small
+                          >{{ severityLabel(allergy.severity) }} ·
+                          {{ allergy.active ? 'Active' : 'Archivée' }}</small
+                        >
+                        <h4>{{ allergy.allergen }}</h4>
+                        <p>{{ allergy.reactionDescription ?? 'Réaction non détaillée' }}</p>
+                      </div>
+                      <div class="line-note">
+                        <small>Consigne transmise</small>
+                        <p>{{ allergy.emergencyInstructions ?? 'Aucune consigne spécifique' }}</p>
+                      </div>
+                    </article>
+                  } @empty {
+                    <p class="empty-state">Aucune allergie consignée.</p>
+                  }
+                </section>
+              }
+
+              @case ('medications') {
+                <section class="data-section">
+                  <header>
+                    <div>
+                      <p class="eyebrow">Instructions reçues</p>
+                      <h3>Médicaments</h3>
+                    </div>
+                    @if (auth.hasPermission('health.write')) {
+                      <button
+                        type="button"
+                        class="primary-action"
+                        (click)="openEntry('medication')"
+                      >
+                        + Ajouter
+                      </button>
+                    }
+                  </header>
+                  @for (medication of health.medications; track medication.id; let index = $index) {
+                    <article class="data-line medication-line">
+                      <span class="line-index">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                      <div class="line-main">
+                        <small>{{
+                          medication.active ? 'Instruction active' : 'Instruction archivée'
+                        }}</small>
+                        <h4>{{ medication.medicationName }}</h4>
+                        <p>
+                          {{ medication.dosageText }} ·
+                          {{ medication.scheduleText ?? 'Horaire non précisé' }}
+                        </p>
+                      </div>
+                      <div class="line-note">
+                        <small>Autorisation</small>
+                        <p>{{ medication.authorizationReference ?? 'Référence non renseignée' }}</p>
+                      </div>
+                    </article>
+                  } @empty {
+                    <p class="empty-state">Aucune instruction de médicament consignée.</p>
+                  }
+                </section>
+              }
+
+              @case ('incidents') {
+                <section class="data-section">
+                  <header>
+                    <div>
+                      <p class="eyebrow">Faits observés</p>
+                      <h3>Incidents de santé</h3>
+                    </div>
+                    @if (auth.hasPermission('health.write')) {
+                      <button type="button" class="primary-action" (click)="openEntry('incident')">
+                        + Consigner
+                      </button>
+                    }
+                  </header>
+                  @for (incident of health.incidents; track incident.id; let index = $index) {
+                    <article class="data-line severity-{{ incident.severity.toLowerCase() }}">
+                      <span class="line-index">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                      <div class="line-main">
+                        <small
+                          >{{ incident.occurredAt | date: 'dd MMM yyyy · HH:mm' }} ·
+                          {{ incident.status }}</small
+                        >
+                        <h4>{{ incident.incidentType.replaceAll('_', ' ') }}</h4>
+                        <p>{{ incident.description }}</p>
+                      </div>
+                      <div class="line-note">
+                        <small>Prise en charge</small>
+                        <p>{{ incident.actionTaken ?? 'Non détaillée' }}</p>
+                      </div>
+                    </article>
+                  } @empty {
+                    <p class="empty-state">Aucun incident consigné.</p>
+                  }
+                </section>
+              }
+
+              @case ('visits') {
+                <section class="data-section">
+                  <header>
+                    <div>
+                      <p class="eyebrow">Journal infirmier</p>
+                      <h3>Visites</h3>
+                    </div>
+                    @if (auth.hasPermission('health.write')) {
+                      <button type="button" class="primary-action" (click)="openEntry('visit')">
+                        + Nouvelle visite
+                      </button>
+                    }
+                  </header>
+                  @for (visit of health.visits; track visit.id; let index = $index) {
+                    <article class="data-line visit-line">
+                      <span class="line-index">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                      <div class="line-main">
+                        <small>{{ visit.visitedAt | date: 'dd MMM yyyy · HH:mm' }}</small>
+                        <h4>{{ visit.reason }}</h4>
+                        <p>{{ visit.observations ?? 'Aucune observation complémentaire' }}</p>
+                      </div>
+                      <div class="line-note">
+                        <small>Suite</small>
+                        <p>
+                          {{ visit.actionTaken ?? 'Non détaillée' }}
+                          @if (visit.returnToClass !== null) {
+                            ·
+                            {{
+                              visit.returnToClass ? 'Retour en classe' : 'Pas de retour en classe'
+                            }}
+                          }
+                        </p>
+                      </div>
+                    </article>
+                  } @empty {
+                    <p class="empty-state">Aucune visite consignée.</p>
+                  }
+                </section>
+              }
+
+              @case ('vaccinations') {
+                <section class="data-section">
+                  <header>
+                    <div>
+                      <p class="eyebrow">Option établissement</p>
+                      <h3>Vaccinations déclarées</h3>
+                    </div>
+                    @if (
+                      health.policy.vaccinationTrackingEnabled &&
+                      auth.hasPermission('health.vaccination')
+                    ) {
+                      <button
+                        type="button"
+                        class="primary-action"
+                        (click)="openEntry('vaccination')"
+                      >
+                        + Ajouter
+                      </button>
+                    }
+                  </header>
+                  @if (!health.policy.vaccinationTrackingEnabled) {
+                    <div class="policy-empty">
+                      <span>◇</span>
+                      <h4>Suivi désactivé par l’établissement</h4>
+                      <p>
+                        Aucune donnée vaccinale n’est demandée ni affichée tant que cette option
+                        reste désactivée.
+                      </p>
+                    </div>
+                  } @else {
+                    @for (
+                      vaccination of health.vaccinations;
+                      track vaccination.id;
+                      let index = $index
+                    ) {
+                      <article class="data-line vaccination-line">
+                        <span class="line-index">{{
+                          (index + 1).toString().padStart(2, '0')
+                        }}</span>
+                        <div class="line-main">
+                          <small
+                            >{{ vaccination.administeredOn | date: 'dd MMM yyyy' }} ·
+                            {{ vaccination.status }}</small
+                          >
+                          <h4>{{ vaccination.vaccineName }}</h4>
+                          <p>
+                            {{ vaccination.doseLabel ?? 'Dose non précisée' }} ·
+                            {{ vaccination.providerName ?? 'Prestataire non renseigné' }}
+                          </p>
+                        </div>
+                        <div class="line-note">
+                          <small>Justificatif</small>
+                          <p>{{ vaccination.documentReference ?? 'Non référencé' }}</p>
+                        </div>
+                      </article>
+                    } @empty {
+                      <p class="empty-state">Aucune vaccination consignée.</p>
+                    }
+                  }
+                </section>
+              }
+            }
+          </div>
+        }
+      </div>
+    </section>
+
+    @if (feedback()) {
+      <div class="feedback" role="status">{{ feedback() }}</div>
+    }
+
+    @if (entryMode()) {
+      <button
+        type="button"
+        class="entry-scrim"
+        aria-label="Fermer la saisie"
+        (click)="entryMode.set(null)"
+      ></button>
+      <aside class="entry-drawer" aria-label="Nouvelle saisie santé">
+        <header>
+          <div>
+            <p class="eyebrow">Saisie sécurisée</p>
+            <h2>
+              @switch (entryMode()) {
+                @case ('profile') {
+                  Profil santé
+                }
+                @case ('allergy') {
+                  Nouvelle allergie
+                }
+                @case ('medication') {
+                  Instruction de médicament
+                }
+                @case ('incident') {
+                  Nouvel incident
+                }
+                @case ('visit') {
+                  Nouvelle visite
+                }
+                @case ('vaccination') {
+                  Vaccination déclarée
+                }
+              }
+            </h2>
+          </div>
+          <button type="button" (click)="entryMode.set(null)" aria-label="Fermer">×</button>
+        </header>
+        <p class="drawer-notice">
+          Ne consignez que des faits transmis ou observés. Aucun diagnostic ne doit être saisi.
+        </p>
+
+        <div class="entry-form">
+          @switch (entryMode()) {
+            @case ('profile') {
+              <label>Groupe sanguin déclaré<input [(ngModel)]="profileBloodGroup" /></label>
+              <label>Assurance<input [(ngModel)]="profileInsuranceProvider" /></label>
+              <label>Numéro d’assurance<input [(ngModel)]="profileInsuranceNumber" /></label>
+              <label>Médecin référent<input [(ngModel)]="profilePhysicianName" /></label>
+              <label>Téléphone du médecin<input [(ngModel)]="profilePhysicianPhone" /></label>
+              <label class="wide"
+                >Consigne d’urgence transmise<textarea
+                  [(ngModel)]="profileEmergencyNotes"
+                ></textarea>
+              </label>
+            }
+            @case ('allergy') {
+              <label>Allergène<input [(ngModel)]="allergyName" /></label>
+              <label
+                >Sévérité<select [(ngModel)]="allergySeverity">
+                  <option value="LOW">Faible</option>
+                  <option value="MODERATE">Modérée</option>
+                  <option value="HIGH">Élevée</option>
+                  <option value="CRITICAL">Critique</option>
+                </select></label
+              >
+              <label class="wide"
+                >Réaction transmise<textarea [(ngModel)]="allergyReaction"></textarea>
+              </label>
+              <label class="wide"
+                >Consigne d’urgence<textarea [(ngModel)]="allergyInstructions"></textarea>
+              </label>
+            }
+            @case ('medication') {
+              <label>Médicament<input [(ngModel)]="medicationName" /></label>
+              <label>Posologie transmise<input [(ngModel)]="medicationDosage" /></label>
+              <label>Voie d’administration<input [(ngModel)]="medicationRoute" /></label>
+              <label>Horaire / fréquence<input [(ngModel)]="medicationSchedule" /></label>
+              <label>Début<input type="date" [(ngModel)]="medicationStartsOn" /></label>
+              <label>Fin<input type="date" [(ngModel)]="medicationEndsOn" /></label>
+              <label>Prescripteur déclaré<input [(ngModel)]="medicationPrescriber" /></label>
+              <label>Référence d’autorisation<input [(ngModel)]="medicationAuthorization" /></label>
+              <label class="wide"
+                >Instructions reçues<textarea [(ngModel)]="medicationInstructions"></textarea>
+              </label>
+            }
+            @case ('incident') {
+              <label>Type factuel<input [(ngModel)]="incidentType" /></label>
+              <label
+                >Sévérité<select [(ngModel)]="incidentSeverity">
+                  <option value="LOW">Faible</option>
+                  <option value="MODERATE">Modérée</option>
+                  <option value="HIGH">Élevée</option>
+                  <option value="CRITICAL">Critique</option>
+                </select></label
+              >
+              <label>Lieu<input [(ngModel)]="incidentLocation" /></label>
+              <label
+                >Statut<select [(ngModel)]="incidentStatus">
+                  <option value="OPEN">Ouvert</option>
+                  <option value="MONITORING">Surveillance</option>
+                  <option value="CLOSED">Clôturé</option>
+                  <option value="TRANSFERRED">Transféré</option>
+                </select></label
+              >
+              <label class="wide"
+                >Description des faits<textarea [(ngModel)]="incidentDescription"></textarea>
+              </label>
+              <label class="wide"
+                >Action menée<textarea [(ngModel)]="incidentAction"></textarea>
+              </label>
+            }
+            @case ('visit') {
+              <label class="wide"
+                >Motif factuel<textarea [(ngModel)]="visitReason"></textarea>
+              </label>
+              <label class="wide"
+                >Observations<textarea [(ngModel)]="visitObservations"></textarea>
+              </label>
+              <label
+                >Température relevée<input type="number" step="0.1" [(ngModel)]="visitTemperature"
+              /></label>
+              <label>Orientation éventuelle<input [(ngModel)]="visitReferredTo" /></label>
+              <label class="wide"
+                >Action menée<textarea [(ngModel)]="visitAction"></textarea>
+              </label>
+              <label class="check"
+                ><input type="checkbox" [(ngModel)]="visitReturnToClass" /> Retour en classe</label
+              >
+            }
+            @case ('vaccination') {
+              <label>Vaccin déclaré<input [(ngModel)]="vaccineName" /></label>
+              <label>Dose<input [(ngModel)]="vaccineDose" /></label>
+              <label>Date déclarée<input type="date" [(ngModel)]="vaccineDate" /></label>
+              <label>Prochaine échéance<input type="date" [(ngModel)]="vaccineNextDue" /></label>
+              <label>Prestataire<input [(ngModel)]="vaccineProvider" /></label>
+              <label>Référence documentaire<input [(ngModel)]="vaccineDocument" /></label>
+              <label
+                >Statut<select [(ngModel)]="vaccineStatus">
+                  <option value="RECORDED">Consigné</option>
+                  <option value="VERIFIED">Vérifié</option>
+                  <option value="EXEMPTED">Exempté</option>
+                </select></label
+              >
+            }
+          }
+        </div>
+        <footer>
+          <button type="button" class="secondary-action" (click)="entryMode.set(null)">
+            Annuler
+          </button>
+          <button
+            type="button"
+            class="primary-action"
+            [disabled]="saving()"
+            (click)="saveCurrentEntry()"
+          >
+            {{ saving() ? 'Enregistrement…' : 'Enregistrer et auditer' }}
+          </button>
+        </footer>
+      </aside>
+    }
+  }
+</main>

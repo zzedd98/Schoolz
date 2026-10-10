@@ -1,0 +1,195 @@
+<main class="section-space">
+  <header class="section-topbar">
+    <a class="brand" routerLink="/student" aria-label="Accueil SchoolZ élève">
+      <span class="brand-mark" aria-hidden="true"><b>S</b><b>Z</b></span>
+      <span>SchoolZ</span><small>Espace élève</small>
+    </a>
+    <nav aria-label="Navigation élève">
+      <a routerLink="/student/day">Ma journée</a>
+      <a routerLink="/student/grades">Notes</a>
+      <a routerLink="/student/homework">Devoirs</a>
+      <a routerLink="/student/courses">Cours</a>
+      <a routerLink="/student/assessments">DS</a>
+      <a routerLink="/student/library">Bibliothèque</a>
+    </nav>
+    <button class="profile-button" type="button" (click)="logout()" title="Se déconnecter">
+      <span>{{ initials() }}</span
+      ><b>{{ dashboard()?.student?.firstName ?? 'Élève' }}</b
+      ><i>↗</i>
+    </button>
+  </header>
+
+  @if (loading() && !dashboard()) {
+    <section class="loading-state">
+      <span></span><strong>Chargement de tes données…</strong>
+    </section>
+  } @else if (error() && !dashboard()) {
+    <section class="error-state" role="alert">
+      <b>!</b>
+      <h1>Cette page n’est pas disponible</h1>
+      <p>{{ error() }}</p>
+      <a routerLink="/student">Retour à mon espace</a>
+    </section>
+  } @else if (dashboard(); as data) {
+    @if (loading()) {
+      <div class="busy-line" aria-hidden="true"></div>
+    }
+
+    <section class="section-heading">
+      <a class="back-link" routerLink="/student">← Mon espace</a>
+      <div class="heading-row">
+        <div>
+          <span>{{ meta.eyebrow }}</span>
+          <h1>{{ meta.title }}</h1>
+          <p>{{ meta.description }}</p>
+        </div>
+        <strong
+          >{{ count(data) }}<small>élément{{ count(data) > 1 ? 's' : '' }}</small></strong
+        >
+      </div>
+      @if (section === 'day') {
+        <label class="date-control">
+          <span>Choisir une journée</span>
+          <input type="date" [(ngModel)]="selectedDate" (change)="selectDate()" />
+        </label>
+      }
+    </section>
+
+    @if (error()) {
+      <p class="inline-error" role="alert">{{ error() }}</p>
+    }
+
+    <section class="records" [class]="'records ' + section">
+      @switch (section) {
+        @case ('day') {
+          <header class="records-context">
+            <span>{{ longDate(data.scheduleDate) }}</span>
+            @if (data.showingNextSchoolDay) {
+              <small>Prochaine journée de cours</small>
+            }
+          </header>
+          <div class="timeline">
+            @for (lesson of data.lessons; track lesson.id) {
+              <article [style.--subject]="lesson.color">
+                <time
+                  ><b>{{ time(lesson.startsAt) }}</b
+                  ><span>{{ time(lesson.endsAt) }}</span></time
+                >
+                <i></i>
+                <div>
+                  <small>{{ lesson.subjectCode }}</small>
+                  <h2>{{ lesson.subjectNameFr }}</h2>
+                  <p>{{ lesson.teacherName }} · {{ lesson.roomName }}</p>
+                </div>
+              </article>
+            } @empty {
+              <p class="empty-state">Aucun cours prévu pour cette journée.</p>
+            }
+          </div>
+        }
+        @case ('grades') {
+          <div class="grade-records">
+            @for (grade of data.grades; track grade.id) {
+              <article [style.--subject]="grade.color">
+                <div class="record-date">
+                  <b>{{ shortDate(grade.assessmentDate).split(' ')[0] }}</b
+                  ><span>{{ shortDate(grade.assessmentDate).split(' ')[1] }}</span>
+                </div>
+                <div class="record-main">
+                  <small>{{ grade.subjectNameFr }}</small>
+                  <h2>{{ grade.title }}</h2>
+                  @if (grade.teacherComment) {
+                    <p>{{ grade.teacherComment }}</p>
+                  }
+                  <span class="grade-track"><i [style.width.%]="gradePercent(grade)"></i></span>
+                </div>
+                <strong>{{ gradeOn20(grade) }}<small>/20</small></strong>
+              </article>
+            } @empty {
+              <p class="empty-state">Aucune note publiée pour le moment.</p>
+            }
+          </div>
+        }
+        @case ('homework') {
+          <div class="homework-records">
+            @for (homework of data.homework; track homework.id; let index = $index) {
+              <article [class.done]="homework.status === 'DONE'" [style.--subject]="homework.color">
+                <span class="record-number">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                <div class="record-main">
+                  <small>{{ homework.subjectNameFr }} · {{ dueDate(homework.dueAt) }}</small>
+                  <h2>{{ homework.title }}</h2>
+                  <p>{{ homework.instructions }}</p>
+                  @if (homework.estimatedMinutes) {
+                    <span class="duration">◷ {{ homework.estimatedMinutes }} min</span>
+                  }
+                </div>
+                <button type="button" (click)="toggleHomework(homework)">
+                  {{ homework.status === 'DONE' ? '✓ Terminé' : 'Marquer comme fait' }}
+                </button>
+              </article>
+            } @empty {
+              <p class="empty-state">Tout est à jour, aucun travail annoncé.</p>
+            }
+          </div>
+        }
+        @case ('courses') {
+          <div class="course-records">
+            @for (course of data.courses; track course.id; let index = $index) {
+              <article
+                [class.expanded]="expandedCourse() === course.id"
+                [style.--subject]="course.color"
+              >
+                <button type="button" (click)="toggleCourse(course)">
+                  <span class="record-number">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <span class="record-main"
+                    ><small>{{ course.subjectNameFr }} · {{ course.teacherName }}</small
+                    ><b>{{ course.title }}</b></span
+                  >
+                  <time>{{ shortDate(course.lessonDate) }}</time
+                  ><i>{{ expandedCourse() === course.id ? '−' : '+' }}</i>
+                </button>
+                @if (expandedCourse() === course.id) {
+                  <div class="course-content">
+                    <p>{{ course.summary || course.content }}</p>
+                    @if (course.attachmentCount) {
+                      <span>⌕ {{ course.attachmentCount }} ressource(s)</span>
+                    }
+                  </div>
+                }
+              </article>
+            } @empty {
+              <p class="empty-state">Aucun cours publié pour le moment.</p>
+            }
+          </div>
+        }
+        @case ('assessments') {
+          <div class="assessment-records">
+            @for (assessment of data.assessments; track assessment.id) {
+              <article [style.--subject]="assessment.color">
+                <div class="record-date">
+                  <b>{{ shortDate(assessment.assessmentDate).split(' ')[0] }}</b
+                  ><span>{{ shortDate(assessment.assessmentDate).split(' ')[1] }}</span>
+                </div>
+                <div class="record-main">
+                  <small
+                    >{{ assessment.typeName }} · coefficient {{ assessment.coefficient }}</small
+                  >
+                  <h2>{{ assessment.subjectNameFr }}</h2>
+                  <p>
+                    {{ assessment.title }}
+                    @if (assessment.description) {
+                      — {{ assessment.description }}
+                    }
+                  </p>
+                </div>
+                <span class="teacher">{{ assessment.teacherName }}</span>
+              </article>
+            } @empty {
+              <p class="empty-state">Aucune évaluation annoncée.</p>
+            }
+          </div>
+        }
+      }
+    </section>
+  }
+</main>

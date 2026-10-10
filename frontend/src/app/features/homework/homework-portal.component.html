@@ -1,0 +1,229 @@
+<main class="portal-page">
+  <header class="portal-nav">
+    <a class="brand" routerLink="/family"
+      ><span><b>S</b><b>Z</b></span> SchoolZ</a
+    >
+    <div>
+      <a routerLink="/family">{{ text('Mon espace famille', 'فضاء الأسرة') }}</a>
+      <button type="button" (click)="toggleLocale()">
+        {{ i18n.locale() === 'ar-MA' ? 'FR' : 'ع' }}
+      </button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <p>{{ text('Cahier de texte familial', 'دفتر النصوص العائلي') }}</p>
+      <h1>{{ text('Les devoirs, au bon moment.', 'الواجبات في الوقت المناسب.') }}</h1>
+      <span>{{
+        text(
+          'Cours réalisés · échéances · statut de travail',
+          'الدروس المنجزة · المواعيد · حالة العمل'
+        )
+      }}</span>
+    </div>
+    <div class="hero-mark" aria-hidden="true">✓</div>
+  </section>
+
+  <section class="filters">
+    <label
+      ><span>{{ text('Enfant', 'الطفل') }}</span
+      ><select [value]="selectedStudentId()" (change)="selectStudent($event)">
+        <option value="">{{ text('Tous les enfants', 'كل الأطفال') }}</option>
+        @for (child of dashboard()?.children ?? []; track child.id) {
+          <option [value]="child.id">{{ child.name }} · {{ child.classroomName }}</option>
+        }
+      </select></label
+    >
+    <label
+      ><span>{{ text('Du', 'من') }}</span
+      ><input type="date" [value]="from()" (change)="selectDate('from', $event)"
+    /></label>
+    <label
+      ><span>{{ text('Au', 'إلى') }}</span
+      ><input type="date" [value]="to()" (change)="selectDate('to', $event)"
+    /></label>
+  </section>
+
+  @if (error()) {
+    <section class="login-notice">
+      <strong>{{ error() }}</strong>
+      <p>
+        {{
+          text(
+            'Votre espace famille donne accès aux admissions, inscriptions, absences et devoirs.',
+            'يتيح فضاء الأسرة الولوج إلى القبول والتسجيل والغياب والواجبات.'
+          )
+        }}
+      </p>
+      <a mat-flat-button routerLink="/family">{{ text('Ouvrir mon espace', 'فتح فضائي') }}</a>
+    </section>
+  }
+  @if (message()) {
+    <p class="message">{{ message() }}</p>
+  }
+
+  @if (dashboard(); as data) {
+    <section class="metrics">
+      <article>
+        <span class="metric-icon todo">○</span>
+        <div>
+          <strong>{{ todoCount() }}</strong
+          ><small>{{ text('à faire', 'للإنجاز') }}</small>
+        </div>
+      </article>
+      <article>
+        <span class="metric-icon done">✓</span>
+        <div>
+          <strong>{{ doneCount() }}</strong
+          ><small>{{ text('terminés', 'منجزة') }}</small>
+        </div>
+      </article>
+      <article>
+        <span class="metric-icon late">!</span>
+        <div>
+          <strong>{{ overdueCount() }}</strong
+          ><small>{{ text('en retard', 'متأخرة') }}</small>
+        </div>
+      </article>
+      <article>
+        <span class="metric-icon lesson">▤</span>
+        <div>
+          <strong>{{ data.lessonContents.length }}</strong
+          ><small>{{ text('cours publiés', 'دروس منشورة') }}</small>
+        </div>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <article class="calendar-panel">
+        <div class="section-title">
+          <div>
+            <p>{{ text('Calendrier personnel', 'التقويم الشخصي') }}</p>
+            <h2>{{ text('Prochaines échéances', 'المواعيد القادمة') }}</h2>
+          </div>
+          <span>{{ data.from }} → {{ data.to }}</span>
+        </div>
+        <div class="calendar-list">
+          @for (day of dueDays(); track day) {
+            <section class="day-group">
+              <div class="day-label">
+                <strong>{{ formatDate(day) }}</strong
+                ><span>{{ homeworkFor(day).length }} {{ text('devoir(s)', 'واجب') }}</span>
+              </div>
+              <div class="day-homework">
+                @for (homework of homeworkFor(day); track homework.id + homework.studentId) {
+                  <article
+                    class="assignment"
+                    [class.completed]="homework.studentStatus === 'DONE'"
+                    [class.overdue]="homework.overdue"
+                  >
+                    <button
+                      class="check"
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="toggleStatus(homework)"
+                      [attr.aria-label]="text('Changer le statut', 'تغيير الحالة')"
+                    >
+                      {{ homework.studentStatus === 'DONE' ? '✓' : '' }}
+                    </button>
+                    <div class="assignment-body">
+                      <div class="assignment-head">
+                        <span class="subject" [style.--subject]="homework.color">{{
+                          subjectName(homework)
+                        }}</span
+                        ><time>{{ formatDate(homework.dueAt, true) }}</time>
+                      </div>
+                      <h3>{{ homework.title }}</h3>
+                      <p>{{ homework.instructions }}</p>
+                      <div class="metadata">
+                        <span>{{ homework.studentName }} · {{ homework.classroomName }}</span
+                        ><span>◷ {{ homework.estimatedMinutes ?? '—' }} min</span>
+                      </div>
+                      <div class="attachments">
+                        @for (attachment of homework.attachments; track attachment.id) {
+                          <button type="button" (click)="download(attachment)">
+                            ↧ {{ attachment.fileName }}
+                          </button>
+                        }
+                      </div>
+                      @if (homework.overdue) {
+                        <span class="late-label">{{
+                          text('Échéance dépassée', 'انتهى الأجل')
+                        }}</span>
+                      }
+                      @if (homework.studentStatus === 'DONE') {
+                        <span class="done-label">{{
+                          text('Marqué comme fait', 'تم الإنجاز')
+                        }}</span>
+                      }
+                    </div>
+                  </article>
+                }
+              </div>
+            </section>
+          } @empty {
+            <p class="empty">
+              {{ text('Aucun devoir prévu sur cette période.', 'لا توجد واجبات خلال هذه الفترة.') }}
+            </p>
+          }
+        </div>
+      </article>
+
+      <aside class="lessons-panel">
+        <div class="section-title">
+          <div>
+            <p>{{ text('En classe', 'في القسم') }}</p>
+            <h2>{{ text('Cours réalisés', 'الدروس المنجزة') }}</h2>
+          </div>
+        </div>
+        <div class="lesson-list">
+          @for (lesson of data.lessonContents; track lesson.id + lesson.studentId) {
+            <article class="lesson-card">
+              <div class="lesson-date">
+                <span [style.background]="lesson.color"></span
+                ><time>{{ formatDate(lesson.lessonDate) }}</time>
+              </div>
+              <small>{{ subjectName(lesson) }} · {{ lesson.studentName }}</small>
+              <h3>{{ lesson.title }}</h3>
+              @if (lesson.summary) {
+                <strong>{{ lesson.summary }}</strong>
+              }
+              <p>{{ lesson.content }}</p>
+              <div class="attachments">
+                @for (attachment of lesson.attachments; track attachment.id) {
+                  <button type="button" (click)="download(attachment)">
+                    ↧ {{ attachment.fileName }}
+                  </button>
+                }
+              </div>
+            </article>
+          } @empty {
+            <p class="empty">
+              {{
+                text(
+                  'Aucun cours publié sur cette période.',
+                  'لا توجد دروس منشورة خلال هذه الفترة.'
+                )
+              }}
+            </p>
+          }
+        </div>
+      </aside>
+    </section>
+  } @else if (busy() && !error()) {
+    <p class="loading">{{ text('Chargement du calendrier…', 'جار تحميل التقويم…') }}</p>
+  }
+
+  <footer>
+    <span>SchoolZ</span>
+    <p>
+      {{
+        text(
+          'Le cahier de texte ne remplace pas la relation avec l’enseignant.',
+          'دفتر النصوص لا يعوض التواصل مع الأستاذ.'
+        )
+      }}
+    </p>
+  </footer>
+</main>

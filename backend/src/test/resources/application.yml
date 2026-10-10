@@ -1,0 +1,44 @@
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:schoolz;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+  data:
+    redis:
+      repositories:
+        enabled: false
+  threads:
+    virtual:
+      enabled: false
+
+management:
+  health:
+    redis:
+      enabled: false
+
+schoolz:
+  provisioning:
+    key: schoolz-test-provisioning-key-at-least-thirty-two-characters
+    public-base-url: http://localhost:4200
+  security:
+    allowed-origins: http://localhost:4200
+    jwt-issuer: schoolz-test
+    jwt-secret: schoolz-test-jwt-secret-at-least-thirty-two-characters
+    token-pepper: schoolz-test-token-pepper-at-least-thirty-two-chars
+    access-token-ttl: 10m
+    refresh-token-ttl: 14d
+    password-reset-ttl: 30m
+    email-verification-ttl: 24h
+    refresh-cookie-name: schoolz_refresh
+    secure-cookies: false
+  demo:
+    expose-tokens: true

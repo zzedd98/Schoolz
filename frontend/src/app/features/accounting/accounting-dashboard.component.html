@@ -1,0 +1,628 @@
+<main class="accounting-page">
+  @if (loading()) {
+    <div class="state">Préparation du Grand Livre…</div>
+  } @else if (data(); as dashboard) {
+    <header class="accounting-hero">
+      <div class="hero-copy">
+        <span class="eyebrow">COMPTABILITÉ OPTIONNELLE</span>
+        <h1>Chaque dirham<br /><em>retrouve son chemin.</em></h1>
+        <p>
+          Des opérations métier jusqu’au Grand Livre, SchoolZ conserve une piste équilibrée, lisible
+          et impossible à réécrire silencieusement.
+        </p>
+        <div class="hero-actions">
+          <button type="button" (click)="syncFamilyLedger()" [disabled]="saving()">
+            ↻ Synchroniser les familles
+          </button>
+          <span>{{ dashboard.familyLedgerEntryCount }} événement(s) relié(s)</span>
+        </div>
+      </div>
+
+      <div class="balance-orbit" [class.unbalanced]="!dashboard.balanced">
+        <div class="orbit-ring ring-one"></div>
+        <div class="orbit-ring ring-two"></div>
+        <div class="balance-core">
+          <span>{{ dashboard.balanced ? '✓' : '!' }}</span>
+          <strong>{{ dashboard.balanced ? 'Équilibre vérifié' : 'Écart détecté' }}</strong>
+          <small>Débit = crédit</small>
+        </div>
+        <div class="orbit-total debit">
+          <small>Débits</small>
+          <b>{{ dashboard.totalDebit | number: '1.2-2' }} MAD</b>
+        </div>
+        <div class="orbit-total credit">
+          <small>Crédits</small>
+          <b>{{ dashboard.totalCredit | number: '1.2-2' }} MAD</b>
+        </div>
+      </div>
+    </header>
+
+    @if (notice()) {
+      <div class="notice success">{{ notice() }}</div>
+    }
+    @if (error()) {
+      <div class="notice error">{{ error() }}</div>
+    }
+
+    <nav class="accounting-tabs" aria-label="Rubriques comptables">
+      <button
+        type="button"
+        [class.active]="activeSection() === 'ledger'"
+        (click)="selectSection('ledger')"
+      >
+        <span>01</span> Grand Livre
+        <b>{{ dashboard.entries.length }}</b>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeSection() === 'balance'"
+        (click)="selectSection('balance')"
+      >
+        <span>02</span> Balance & plan
+        <b>{{ dashboard.accounts.length }}</b>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeSection() === 'suppliers'"
+        (click)="selectSection('suppliers')"
+      >
+        <span>03</span> Fournisseurs & dépenses
+        <b>{{ dashboard.supplierInvoices.length + dashboard.expenses.length }}</b>
+      </button>
+      <button
+        type="button"
+        [class.active]="activeSection() === 'bank'"
+        (click)="selectSection('bank')"
+      >
+        <span>04</span> Banque & rapprochement
+        <b>{{ dashboard.reconciliations.length }}</b>
+      </button>
+    </nav>
+
+    @if (activeSection() === 'ledger') {
+      <section class="section-intro">
+        <div>
+          <span class="eyebrow ink">ÉCRITURES POSTÉES</span>
+          <h2>Une histoire comptable, pas une grille à remplir.</h2>
+          <p>
+            Chaque écriture naît d’une facture, d’un paiement, d’une dépense ou d’une extourne
+            contrôlée. L’interface ne permet aucune manipulation directe des lignes.
+          </p>
+        </div>
+        <div class="period-seal">
+          <span>Période ouverte</span>
+          <strong>{{ dashboard.fiscalPeriods[0]?.label || 'À configurer' }}</strong>
+          <small
+            >{{ dashboard.fiscalPeriods[0]?.startsOn | date: 'dd/MM/yyyy' }} —
+            {{ dashboard.fiscalPeriods[0]?.endsOn | date: 'dd/MM/yyyy' }}</small
+          >
+        </div>
+      </section>
+
+      <div class="ledger-sheet">
+        <div class="ledger-head">
+          <span>Date / journal</span>
+          <span>Référence & origine</span>
+          <span>Débit</span>
+          <span>Crédit</span>
+          <span></span>
+        </div>
+        @for (entry of dashboard.entries; track entry.id) {
+          <article class="ledger-entry" [class.open]="selectedEntryId() === entry.id">
+            <button class="entry-summary" type="button" (click)="toggleEntry(entry)">
+              <span class="entry-date">
+                <b>{{ entry.entryDate | date: 'dd/MM' }}</b>
+                <small>{{ entry.journalCode }} · {{ entry.entryNumber }}</small>
+              </span>
+              <span class="entry-reference">
+                <strong>{{ entry.description }}</strong>
+                <small>
+                  <i>{{ sourceLabel(entry.sourceModule) }}</i>
+                  {{ entry.reference }}
+                  @if (entry.status === 'REVERSED') {
+                    · <em>Extournée</em>
+                  }
+                </small>
+              </span>
+              <span class="money debit">{{ entry.totalDebit | number: '1.2-2' }}</span>
+              <span class="money credit">{{ entry.totalCredit | number: '1.2-2' }}</span>
+              <span class="chevron">{{ selectedEntryId() === entry.id ? '−' : '+' }}</span>
+            </button>
+            @if (selectedEntryId() === entry.id) {
+              <div class="entry-lines">
+                @for (line of entry.lines; track line.id) {
+                  <div>
+                    <span class="account-code">{{ line.accountCode }}</span>
+                    <span>
+                      <strong>{{ line.accountName }}</strong>
+                      <small>{{ line.label }}</small>
+                    </span>
+                    <b>{{ line.debitAmount ? (line.debitAmount | number: '1.2-2') : '—' }}</b>
+                    <b>{{ line.creditAmount ? (line.creditAmount | number: '1.2-2') : '—' }}</b>
+                  </div>
+                }
+                @if (entry.status === 'POSTED' && entry.sourceModule !== 'ACCOUNTING') {
+                  <button class="text-action danger" type="button" (click)="reverseEntry(entry)">
+                    Créer une extourne
+                  </button>
+                }
+              </div>
+            }
+          </article>
+        } @empty {
+          <div class="empty">
+            Aucune écriture : activez le module et synchronisez les opérations.
+          </div>
+        }
+      </div>
+    }
+
+    @if (activeSection() === 'balance') {
+      <section class="section-intro compact">
+        <div>
+          <span class="eyebrow ink">BALANCE DE CONTRÔLE</span>
+          <h2>Le plan comptable se lit d’un coup d’œil.</h2>
+          <p>Les mouvements agrégés restent rattachés à leur compte et à leur origine.</p>
+        </div>
+        <button class="primary-action" type="button" (click)="openDrawer('account')">
+          + Ajouter un compte
+        </button>
+      </section>
+
+      <div class="balance-layout">
+        <div class="trial-balance">
+          <div class="trial-head">
+            <span>Compte</span><span>Débit</span><span>Crédit</span><span>Solde</span>
+          </div>
+          @for (line of dashboard.trialBalance; track line.accountId) {
+            <div class="trial-line">
+              <span>
+                <b>{{ line.accountCode }}</b>
+                <span>{{ line.accountName }}</span>
+                <small>{{ accountTypeLabel(line.accountType) }}</small>
+              </span>
+              <strong>{{ line.totalDebit | number: '1.2-2' }}</strong>
+              <strong>{{ line.totalCredit | number: '1.2-2' }}</strong>
+              <strong [class.negative]="line.balance < 0">{{
+                line.balance | number: '1.2-2'
+              }}</strong>
+            </div>
+          }
+        </div>
+
+        <aside class="chart-map">
+          <span class="eyebrow ink">COMPOSITION</span>
+          @for (type of ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']; track type) {
+            <div>
+              <span class="type-dot" [attr.data-type]="type"></span>
+              <strong>{{ accountTypeLabel(type) }}</strong>
+              <b>{{ accountCount(type) }}</b>
+            </div>
+          }
+          <hr />
+          <p>
+            <b>{{ dashboard.costCenters.length }}</b> centre(s) de coût permettent le suivi
+            analytique sans modifier le Grand Livre.
+          </p>
+        </aside>
+      </div>
+    }
+
+    @if (activeSection() === 'suppliers') {
+      <section class="section-intro compact">
+        <div>
+          <span class="eyebrow ink">CYCLE FOURNISSEUR</span>
+          <h2>De la pièce reçue à l’écriture équilibrée.</h2>
+          <p>Les brouillons restent modifiables ; la comptabilisation les relie au Grand Livre.</p>
+        </div>
+        <div class="action-pair">
+          <button type="button" (click)="openDrawer('supplierInvoice')">+ Facture</button>
+          <button type="button" (click)="openDrawer('expense')">+ Dépense</button>
+        </div>
+      </section>
+
+      <div class="supplier-flow">
+        <section>
+          <header>
+            <span>Factures fournisseurs</span>
+            <b>{{ dashboard.supplierInvoices.length }}</b>
+          </header>
+          @for (invoice of dashboard.supplierInvoices; track invoice.id) {
+            <article>
+              <div class="flow-date">
+                <b>{{ invoice.invoiceDate | date: 'dd' }}</b>
+                <small>{{ invoice.invoiceDate | date: 'MM' }}</small>
+              </div>
+              <div>
+                <strong>{{ invoice.supplierName }}</strong>
+                <span>{{ invoice.invoiceNumber }} · {{ invoice.description }}</span>
+                <small>Échéance {{ invoice.dueDate | date: 'dd/MM/yyyy' }}</small>
+              </div>
+              <div class="flow-amount">
+                <b>{{ invoice.totalAmount | number: '1.2-2' }} MAD</b>
+                <span [class.draft]="invoice.status === 'DRAFT'">{{ invoice.status }}</span>
+                @if (invoice.status === 'DRAFT') {
+                  <button type="button" (click)="postSupplierInvoice(invoice.id)">
+                    Comptabiliser
+                  </button>
+                }
+              </div>
+            </article>
+          }
+        </section>
+
+        <section>
+          <header>
+            <span>Dépenses directes</span>
+            <b>{{ dashboard.expenses.length }}</b>
+          </header>
+          @for (expense of dashboard.expenses; track expense.id) {
+            <article>
+              <div class="flow-date coral">
+                <b>{{ expense.expenseDate | date: 'dd' }}</b>
+                <small>{{ expense.expenseDate | date: 'MM' }}</small>
+              </div>
+              <div>
+                <strong>{{ expense.description }}</strong>
+                <span>{{ expense.expenseReference }} · {{ expense.paymentMethod }}</span>
+                <small>{{ expense.supplierName || 'Dépense interne' }}</small>
+              </div>
+              <div class="flow-amount">
+                <b>{{ expense.amount | number: '1.2-2' }} MAD</b>
+                <span [class.draft]="expense.status === 'DRAFT'">{{ expense.status }}</span>
+                @if (expense.status === 'DRAFT') {
+                  <button type="button" (click)="postExpense(expense.id)">Comptabiliser</button>
+                }
+              </div>
+            </article>
+          }
+        </section>
+      </div>
+    }
+
+    @if (activeSection() === 'bank') {
+      <section class="section-intro compact">
+        <div>
+          <span class="eyebrow ink">BANQUE & POINTAGE</span>
+          <h2>Le relevé et les écritures se répondent.</h2>
+          <p>Un rapprochement terminé est figé et conserve la liste de ses mouvements.</p>
+        </div>
+        <button class="primary-action" type="button" (click)="openDrawer('reconciliation')">
+          + Nouveau relevé
+        </button>
+      </section>
+
+      <div class="bank-landscape">
+        <aside class="bank-card">
+          <span class="eyebrow">COMPTE CONNECTÉ</span>
+          @if (dashboard.bankAccounts[0]; as bank) {
+            <h3>{{ bank.bankName }}</h3>
+            <p>{{ bank.accountLabel }}</p>
+            <strong>{{ bank.ibanMasked }}</strong>
+            <div>
+              <span>{{ bank.code }}</span
+              ><span>Compte {{ bank.ledgerAccountCode }}</span>
+            </div>
+          } @else {
+            <p>Aucun compte bancaire configuré.</p>
+          }
+        </aside>
+
+        <div class="reconciliation-river">
+          @for (reconciliation of dashboard.reconciliations; track reconciliation.id) {
+            <article>
+              <span class="river-dot" [class.done]="reconciliation.status === 'COMPLETED'">✓</span>
+              <div>
+                <small
+                  >{{ reconciliation.startsOn | date: 'dd/MM/yyyy' }} →
+                  {{ reconciliation.endsOn | date: 'dd/MM/yyyy' }}</small
+                >
+                <h3>{{ reconciliation.statementReference }}</h3>
+                <p>
+                  {{ reconciliation.itemCount }} mouvement(s) ·
+                  {{ reconciliation.matchedAmount | number: '1.2-2' }} MAD rapprochés
+                </p>
+              </div>
+              <div class="river-balance">
+                <small>Solde final</small>
+                <b>{{ reconciliation.closingBalance | number: '1.2-2' }} MAD</b>
+                <span>{{ reconciliation.status === 'COMPLETED' ? 'Terminé' : 'À pointer' }}</span>
+              </div>
+            </article>
+          } @empty {
+            <div class="empty">Aucun relevé bancaire à rapprocher.</div>
+          }
+        </div>
+      </div>
+    }
+  } @else {
+    <div class="state error">Le cockpit comptable n’est pas disponible.</div>
+  }
+</main>
+
+@if (drawer(); as activeDrawer) {
+  <button
+    class="drawer-backdrop"
+    type="button"
+    (click)="closeDrawer()"
+    aria-label="Fermer"
+  ></button>
+  <aside class="drawer" aria-label="Formulaire comptable">
+    <header>
+      <div>
+        <span class="eyebrow ink">OPÉRATION GUIDÉE</span>
+        <h2>
+          @switch (activeDrawer) {
+            @case ('supplierInvoice') {
+              Nouvelle facture fournisseur
+            }
+            @case ('expense') {
+              Nouvelle dépense
+            }
+            @case ('account') {
+              Nouveau compte
+            }
+            @case ('reconciliation') {
+              Nouveau rapprochement
+            }
+          }
+        </h2>
+      </div>
+      <button type="button" (click)="closeDrawer()" aria-label="Fermer">×</button>
+    </header>
+
+    @if (activeDrawer === 'supplierInvoice' && data(); as dashboard) {
+      <form (ngSubmit)="saveSupplierInvoice()">
+        <label
+          >Fournisseur<select name="supplier" [(ngModel)]="supplierInvoiceForm.supplierId" required>
+            @for (supplier of dashboard.suppliers; track supplier.id) {
+              <option [value]="supplier.id">{{ supplier.name }}</option>
+            }
+          </select></label
+        >
+        <div class="field-row">
+          <label
+            >N° facture<input
+              name="invoiceNumber"
+              [(ngModel)]="supplierInvoiceForm.invoiceNumber"
+              required /></label
+          ><label
+            >Montant MAD<input
+              name="total"
+              type="number"
+              min="0.01"
+              step="0.01"
+              [(ngModel)]="supplierInvoiceForm.totalAmount"
+              required
+          /></label>
+        </div>
+        <div class="field-row">
+          <label
+            >Date<input
+              name="invoiceDate"
+              type="date"
+              [(ngModel)]="supplierInvoiceForm.invoiceDate"
+              required /></label
+          ><label
+            >Échéance<input
+              name="dueDate"
+              type="date"
+              [(ngModel)]="supplierInvoiceForm.dueDate"
+              required
+          /></label>
+        </div>
+        <label
+          >Description<textarea
+            name="description"
+            [(ngModel)]="supplierInvoiceForm.description"
+            required
+          ></textarea>
+        </label>
+        <label
+          >Journal<select name="journal" [(ngModel)]="supplierInvoiceForm.journalId" required>
+            @for (journal of dashboard.journals; track journal.id) {
+              <option [value]="journal.id">{{ journal.code }} · {{ journal.name }}</option>
+            }
+          </select></label
+        >
+        <label
+          >Compte de charge<select
+            name="expenseAccount"
+            [(ngModel)]="supplierInvoiceForm.expenseAccountId"
+            required
+          >
+            @for (account of dashboard.accounts; track account.id) {
+              @if (account.accountType === 'EXPENSE') {
+                <option [value]="account.id">{{ account.code }} · {{ account.name }}</option>
+              }
+            }
+          </select></label
+        >
+        <label
+          >Compte fournisseur<select
+            name="payableAccount"
+            [(ngModel)]="supplierInvoiceForm.payableAccountId"
+            required
+          >
+            @for (account of dashboard.accounts; track account.id) {
+              @if (account.accountType === 'LIABILITY') {
+                <option [value]="account.id">{{ account.code }} · {{ account.name }}</option>
+              }
+            }
+          </select></label
+        >
+        <label
+          >Centre de coût<select name="costCenter" [(ngModel)]="supplierInvoiceForm.costCenterId">
+            @for (center of dashboard.costCenters; track center.id) {
+              <option [value]="center.id">{{ center.code }} · {{ center.name }}</option>
+            }
+          </select></label
+        >
+        <button class="submit" type="submit" [disabled]="saving()">Enregistrer le brouillon</button>
+      </form>
+    }
+
+    @if (activeDrawer === 'expense' && data(); as dashboard) {
+      <form (ngSubmit)="saveExpense()">
+        <div class="field-row">
+          <label
+            >Référence<input
+              name="expenseReference"
+              [(ngModel)]="expenseForm.expenseReference" /></label
+          ><label
+            >Date<input
+              name="expenseDate"
+              type="date"
+              [(ngModel)]="expenseForm.expenseDate"
+              required
+          /></label>
+        </div>
+        <label
+          >Description<textarea
+            name="expenseDescription"
+            [(ngModel)]="expenseForm.description"
+            required
+          ></textarea>
+        </label>
+        <div class="field-row">
+          <label
+            >Montant MAD<input
+              name="expenseAmount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              [(ngModel)]="expenseForm.amount"
+              required /></label
+          ><label
+            >Paiement<select name="paymentMethod" [(ngModel)]="expenseForm.paymentMethod">
+              <option value="BANK_TRANSFER">Virement</option>
+              <option value="CASH">Espèces</option>
+              <option value="CHECK">Chèque</option>
+              <option value="CARD">Carte</option>
+            </select></label
+          >
+        </div>
+        <label
+          >Journal<select name="expenseJournal" [(ngModel)]="expenseForm.journalId" required>
+            @for (journal of dashboard.journals; track journal.id) {
+              <option [value]="journal.id">{{ journal.code }} · {{ journal.name }}</option>
+            }
+          </select></label
+        >
+        <label
+          >Compte de charge<select
+            name="expenseLedger"
+            [(ngModel)]="expenseForm.expenseAccountId"
+            required
+          >
+            @for (account of dashboard.accounts; track account.id) {
+              @if (account.accountType === 'EXPENSE') {
+                <option [value]="account.id">{{ account.code }} · {{ account.name }}</option>
+              }
+            }
+          </select></label
+        >
+        <label
+          >Compte de paiement<select
+            name="paymentAccount"
+            [(ngModel)]="expenseForm.paymentAccountId"
+            required
+          >
+            @for (account of dashboard.accounts; track account.id) {
+              @if (account.accountType === 'ASSET') {
+                <option [value]="account.id">{{ account.code }} · {{ account.name }}</option>
+              }
+            }
+          </select></label
+        >
+        <button class="submit" type="submit" [disabled]="saving()">Enregistrer le brouillon</button>
+      </form>
+    }
+
+    @if (activeDrawer === 'account') {
+      <form (ngSubmit)="saveAccount()">
+        <div class="field-row">
+          <label>Code<input name="accountCode" [(ngModel)]="accountForm.code" required /></label
+          ><label
+            >Type<select name="accountType" [(ngModel)]="accountForm.accountType">
+              <option value="ASSET">Actif</option>
+              <option value="LIABILITY">Passif</option>
+              <option value="EQUITY">Capitaux</option>
+              <option value="REVENUE">Produit</option>
+              <option value="EXPENSE">Charge</option>
+            </select></label
+          >
+        </div>
+        <label>Nom<input name="accountName" [(ngModel)]="accountForm.name" required /></label>
+        <label
+          >Description<textarea
+            name="accountDescription"
+            [(ngModel)]="accountForm.description"
+          ></textarea>
+        </label>
+        <label class="check"
+          ><input name="allowPosting" type="checkbox" [(ngModel)]="accountForm.allowPosting" />
+          Autoriser les opérations métier à utiliser ce compte</label
+        >
+        <button class="submit" type="submit" [disabled]="saving()">
+          Ajouter au plan comptable
+        </button>
+      </form>
+    }
+
+    @if (activeDrawer === 'reconciliation' && data(); as dashboard) {
+      <form (ngSubmit)="saveReconciliation()">
+        <label
+          >Compte bancaire<select
+            name="bankAccount"
+            [(ngModel)]="reconciliationForm.bankAccountId"
+            required
+          >
+            @for (bank of dashboard.bankAccounts; track bank.id) {
+              <option [value]="bank.id">{{ bank.code }} · {{ bank.accountLabel }}</option>
+            }
+          </select></label
+        >
+        <label
+          >Référence du relevé<input
+            name="statementReference"
+            [(ngModel)]="reconciliationForm.statementReference"
+            required
+        /></label>
+        <div class="field-row">
+          <label
+            >Du<input
+              name="reconciliationStart"
+              type="date"
+              [(ngModel)]="reconciliationForm.startsOn"
+              required /></label
+          ><label
+            >Au<input
+              name="reconciliationEnd"
+              type="date"
+              [(ngModel)]="reconciliationForm.endsOn"
+              required
+          /></label>
+        </div>
+        <div class="field-row">
+          <label
+            >Solde initial<input
+              name="openingBalance"
+              type="number"
+              step="0.01"
+              [(ngModel)]="reconciliationForm.openingBalance"
+              required /></label
+          ><label
+            >Solde final<input
+              name="closingBalance"
+              type="number"
+              step="0.01"
+              [(ngModel)]="reconciliationForm.closingBalance"
+              required
+          /></label>
+        </div>
+        <button class="submit" type="submit" [disabled]="saving()">Créer le rapprochement</button>
+      </form>
+    }
+  </aside>
+}

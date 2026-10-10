@@ -1,0 +1,275 @@
+<main class="dms-page">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">DOCUMENT MANAGEMENT SYSTEM</p>
+      <h1>{{ text('Documents & coffre numérique', 'الوثائق والخزنة الرقمية') }}</h1>
+      <p>
+        {{
+          text(
+            'Classement, versions, expiration, PDF et partage famille dans un même registre.',
+            'تصنيف ونسخ وتواريخ انتهاء وملفات PDF ومشاركة الأسرة في سجل واحد.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="storage-card">
+      <span>{{ text('Contrat de stockage', 'عقد التخزين') }}</span>
+      <strong>{{ dashboard()?.storage?.['contract'] ?? 'S3_COMPATIBLE_OBJECT_KEYS' }}</strong>
+      <small>
+        {{
+          text(
+            'Stockage versionné · intégrité SHA-256',
+            'نسخة تجريبية JDBC · يلزم موصل S3 خارجي للإنتاج'
+          )
+        }}
+      </small>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="feedback error">{{ error() }}</p>
+  }
+  @if (notice()) {
+    <p class="feedback success">{{ notice() }}</p>
+  }
+
+  @if (dashboard(); as dashboard) {
+    <section class="metrics" aria-label="Indicateurs documentaires">
+      <article>
+        <span>{{ text('Documents actifs', 'الوثائق النشطة') }}</span>
+        <strong>{{ dashboard.documents.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Catégories', 'التصنيفات') }}</span>
+        <strong>{{ dashboard.categories.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Modèles PDF', 'قوالب PDF') }}</span>
+        <strong>{{ dashboard.pdfTemplates.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Liens de lecture', 'روابط القراءة') }}</span>
+        <strong>10 min · 3×</strong>
+      </article>
+    </section>
+
+    <section class="workspace-grid">
+      <div class="catalog panel">
+        <div class="panel-heading">
+          <div>
+            <span class="step">01</span>
+            <h2>{{ text('Registre documentaire', 'سجل الوثائق') }}</h2>
+          </div>
+          <span class="count">{{ dashboard.documents.length }}</span>
+        </div>
+
+        <div class="document-list">
+          @for (document of dashboard.documents; track document.id) {
+            <button
+              type="button"
+              class="document-row"
+              [class.active]="selectedId() === document.id"
+              (click)="select(document)"
+            >
+              <span class="file-mark">{{ document.currentVersion }}</span>
+              <span class="file-copy">
+                <strong>{{ document.title }}</strong>
+                <small>{{ document.categoryLabel }} · {{ document.documentType }}</small>
+              </span>
+              <span class="visibility" [class.family]="document.visibility === 'FAMILY'">
+                {{ document.visibility }}
+              </span>
+            </button>
+          } @empty {
+            <p class="empty">{{ text('Aucun document.', 'لا توجد وثائق.') }}</p>
+          }
+        </div>
+      </div>
+
+      <div class="detail panel">
+        <div class="panel-heading">
+          <div>
+            <span class="step">02</span>
+            <h2>{{ text('Versions & accès', 'النسخ وصلاحيات الوصول') }}</h2>
+          </div>
+        </div>
+
+        @if (selected(); as document) {
+          <div class="document-title">
+            <div>
+              <p>{{ document.categoryLabel }}</p>
+              <h3>{{ document.title }}</h3>
+            </div>
+            <button type="button" class="primary compact" (click)="download(document)">
+              {{ text('Lien signé', 'رابط موقّع') }}
+            </button>
+          </div>
+
+          <dl class="metadata">
+            <div>
+              <dt>SHA-256</dt>
+              <dd>{{ document.versions[0]?.sha256?.slice(0, 20) }}…</dd>
+            </div>
+            <div>
+              <dt>{{ text('Expiration', 'الانتهاء') }}</dt>
+              <dd>{{ document.expiresOn ? (document.expiresOn | date: 'dd/MM/yyyy') : '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ text('Propriétaire', 'المالك') }}</dt>
+              <dd>{{ document.ownerKind }}</dd>
+            </div>
+            <div>
+              <dt>{{ text('Version', 'النسخة') }}</dt>
+              <dd>v{{ document.currentVersion }}</dd>
+            </div>
+          </dl>
+
+          <div class="version-list">
+            @for (version of document.versions; track version.id) {
+              <article>
+                <span>v{{ version.versionNumber }}</span>
+                <div>
+                  <strong>{{ version.fileName }}</strong>
+                  <small>
+                    {{ version.sourceKind }} · {{ version.sizeBytes / 1024 | number: '1.0-1' }} Ko ·
+                    {{ version.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                  </small>
+                </div>
+              </article>
+            }
+          </div>
+
+          <div class="inline-actions">
+            <label class="file-control">
+              <span>{{ text('Nouvelle version', 'نسخة جديدة') }}</span>
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png"
+                (change)="fileSelected($event, 'version')"
+              />
+            </label>
+            <button type="button" (click)="addVersion()" [disabled]="!versionFile || busy()">
+              {{ text('Ajouter', 'إضافة') }}
+            </button>
+          </div>
+
+          <div class="share-box">
+            <label>
+              {{ text('Partager avec', 'مشاركة مع') }}
+              <select [(ngModel)]="shareParentId">
+                @for (parent of dashboard.parents; track parent.id) {
+                  <option [value]="parent.id">{{ parent.displayName }} · {{ parent.email }}</option>
+                }
+              </select>
+            </label>
+            <button type="button" (click)="share()" [disabled]="!shareParentId || busy()">
+              {{ text('Accorder lecture + téléchargement', 'منح القراءة والتنزيل') }}
+            </button>
+          </div>
+        } @else {
+          <p class="empty">{{ text('Sélectionnez un document.', 'اختر وثيقة.') }}</p>
+        }
+      </div>
+    </section>
+
+    <section class="creator-grid">
+      <form class="panel form-panel" (ngSubmit)="generate()">
+        <div class="panel-heading">
+          <div>
+            <span class="step">03</span>
+            <h2>{{ text('Générer un PDF', 'إنشاء PDF') }}</h2>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>
+            {{ text('Modèle', 'القالب') }}
+            <select [(ngModel)]="pdfTemplate" name="pdfTemplate">
+              @for (template of dashboard.pdfTemplates; track template) {
+                <option [ngValue]="template">{{ templateLabel(template) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            {{ text('Famille', 'الأسرة') }}
+            <select [(ngModel)]="pdfParentId" name="pdfParentId">
+              <option value="">{{ text('Document école', 'وثيقة المؤسسة') }}</option>
+              @for (parent of dashboard.parents; track parent.id) {
+                <option [value]="parent.id">{{ parent.displayName }}</option>
+              }
+            </select>
+          </label>
+          <label class="wide">
+            {{ text('Titre', 'العنوان') }}
+            <input [(ngModel)]="pdfTitle" name="pdfTitle" maxlength="240" required />
+          </label>
+          <label>
+            {{ text('Destinataire', 'المستفيد') }}
+            <input [(ngModel)]="pdfRecipient" name="pdfRecipient" maxlength="240" required />
+          </label>
+          <label>
+            {{ text('Référence', 'المرجع') }}
+            <input [(ngModel)]="pdfReference" name="pdfReference" maxlength="180" />
+          </label>
+          <label>
+            {{ text('Expiration', 'الانتهاء') }}
+            <input [(ngModel)]="pdfExpiresOn" name="pdfExpiresOn" type="date" />
+          </label>
+        </div>
+        <button class="primary" type="submit" [disabled]="busy()">
+          {{ text('Générer, signer l’empreinte et versionner', 'إنشاء البصمة وحفظ النسخة') }}
+        </button>
+      </form>
+
+      <form class="panel form-panel" (ngSubmit)="upload()">
+        <div class="panel-heading">
+          <div>
+            <span class="step">04</span>
+            <h2>{{ text('Charger un fichier', 'تحميل ملف') }}</h2>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>
+            {{ text('Catégorie', 'التصنيف') }}
+            <select [(ngModel)]="uploadCategoryId" name="uploadCategoryId">
+              @for (category of dashboard.categories; track category.id) {
+                <option [value]="category.id">{{ category.labelFr }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            {{ text('Type', 'النوع') }}
+            <select [(ngModel)]="uploadType" name="uploadType">
+              @for (type of dashboard.documentTypes; track type) {
+                <option [ngValue]="type">{{ type }}</option>
+              }
+            </select>
+          </label>
+          <label class="wide">
+            {{ text('Titre', 'العنوان') }}
+            <input [(ngModel)]="uploadTitle" name="uploadTitle" maxlength="240" required />
+          </label>
+          <label>
+            {{ text('Expiration', 'الانتهاء') }}
+            <input [(ngModel)]="uploadExpiresOn" name="uploadExpiresOn" type="date" />
+          </label>
+          <label class="file-control wide">
+            <span>PDF · JPEG · PNG · 10 Mio max</span>
+            <input
+              type="file"
+              accept="application/pdf,image/jpeg,image/png"
+              (change)="fileSelected($event, 'upload')"
+              required
+            />
+          </label>
+        </div>
+        <button class="primary" type="submit" [disabled]="!uploadFile || busy()">
+          {{ text('Créer le document et sa version 1', 'إنشاء الوثيقة ونسختها الأولى') }}
+        </button>
+      </form>
+    </section>
+  } @else if (busy()) {
+    <p class="loading">
+      {{ text('Chargement du coffre documentaire…', 'جار تحميل خزنة الوثائق…') }}
+    </p>
+  }
+</main>

@@ -1,0 +1,114 @@
+<main class="portal">
+  <header class="topbar">
+    <a class="brand" routerLink="/family"><span>SZ</span> SchoolZ</a>
+    <nav>
+      <a routerLink="/enrollment">{{ text('Inscription', 'التسجيل') }}</a>
+      <button type="button" (click)="toggleLocale()">
+        {{ i18n.locale() === 'ar-MA' ? 'FR' : 'AR' }}
+      </button>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow">
+        {{ text('Espace famille · Petite enfance', 'فضاء الأسرة · الطفولة المبكرة') }}
+      </p>
+      <h1>{{ text('La journée de votre enfant, simplement.', 'يوم طفلك بكل بساطة.') }}</h1>
+      <p>
+        {{
+          text(
+            'Les informations publiées par son éducateur, dans un rapport clair et chronologique.',
+            'المعلومات التي نشرها المربي في تقرير واضح ومرتب زمنياً.'
+          )
+        }}
+      </p>
+    </div>
+    <label
+      >{{ text('Journée', 'اليوم')
+      }}<input type="date" [value]="date()" (change)="selectDate($event)"
+    /></label>
+  </section>
+
+  @if (error()) {
+    <section class="notice error">
+      <p>{{ error() }}</p>
+      <a routerLink="/family">{{ text('Ouvrir le portail parent', 'فتح بوابة الوالدين') }}</a>
+    </section>
+  } @else if (busy()) {
+    <p class="empty">{{ text('Chargement du Daily Report…', 'جاري تحميل التقرير اليومي…') }}</p>
+  } @else if (reports().length === 0) {
+    <section class="notice">
+      <strong>{{ text('Rapport pas encore publié', 'لم يُنشر التقرير بعد') }}</strong>
+      <p>
+        {{
+          text(
+            'Le rapport apparaîtra ici dès que l’équipe éducative aura terminé la journée.',
+            'سيظهر التقرير هنا فور إنهاء الفريق التربوي لليوم.'
+          )
+        }}
+      </p>
+    </section>
+  }
+
+  @for (report of reports(); track report.dailyLog.id) {
+    <article class="report-card">
+      <header>
+        <div class="avatar">{{ report.studentName.slice(0, 1) }}</div>
+        <div>
+          <p>{{ report.groupName }}</p>
+          <h2>{{ report.studentName }}</h2>
+        </div>
+        <span>✓ {{ text('Rapport publié', 'تقرير منشور') }}</span>
+      </header>
+
+      <section class="summary">
+        <div>
+          <small>{{ text('Arrivée', 'الوصول') }}</small
+          ><strong>{{ time(report.dailyLog.arrivalAt) }}</strong>
+        </div>
+        <div>
+          <small>{{ text('Départ', 'المغادرة') }}</small
+          ><strong>{{ time(report.dailyLog.departureAt) }}</strong>
+        </div>
+        <div>
+          <small>{{ text('Humeur', 'المزاج') }}</small
+          ><strong>{{ mood(report.dailyLog.mood) }}</strong>
+        </div>
+        <div>
+          <small>{{ text('Publié à', 'نشر في') }}</small
+          ><strong>{{ time(report.dailyLog.publishedAt) }}</strong>
+        </div>
+      </section>
+
+      @if (report.dailyLog.summary) {
+        <blockquote>“{{ report.dailyLog.summary }}”</blockquote>
+      }
+
+      <section class="timeline">
+        <h3>{{ text('Le fil de la journée', 'تفاصيل اليوم') }}</h3>
+        @for (event of report.dailyLog.events; track event.id) {
+          <div class="timeline-event" [attr.data-type]="event.eventType">
+            <time>{{ time(event.occurredAt) }}</time>
+            <i></i>
+            <div>
+              <strong>{{ label(event) }}</strong>
+              <p>{{ detail(event) }}</p>
+            </div>
+          </div>
+        }
+      </section>
+
+      <footer>
+        <p>
+          {{
+            text(
+              'Ce journal partage des faits saisis par l’établissement. Il ne fournit aucun diagnostic médical.',
+              'يشارك هذا السجل الوقائع التي أدخلتها المؤسسة ولا يقدم أي تشخيص طبي.'
+            )
+          }}
+        </p>
+      </footer>
+    </article>
+  }
+</main>

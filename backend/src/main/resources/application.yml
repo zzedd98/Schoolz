@@ -1,0 +1,122 @@
+spring:
+  application:
+    name: school-erp-backend
+  autoconfigure:
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/school_erp}
+    username: ${DB_USERNAME:school_erp}
+    password: ${DB_PASSWORD:school_erp_dev_only}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 5000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-migration-naming: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT_INTERNAL:6379}
+      timeout: 2s
+      repositories:
+        enabled: false
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${BACKEND_PORT:8080}
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 100ms,300ms,1s,3s
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+schoolz:
+  provisioning:
+    key: ${SCHOOLZ_PROVISIONING_KEY:}
+    public-base-url: ${SCHOOLZ_PUBLIC_BASE_URL:http://localhost:4200}
+  admissions:
+    portal-session-ttl: 7d
+  security:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:4200,http://localhost:8088,http://127.0.0.1:4200,http://127.0.0.1:8088}
+    jwt-issuer: ${AUTH_JWT_ISSUER:schoolz-local}
+    jwt-secret: ${AUTH_JWT_SECRET}
+    token-pepper: ${AUTH_TOKEN_PEPPER}
+    access-token-ttl: ${AUTH_ACCESS_TOKEN_TTL:10m}
+    refresh-token-ttl: ${AUTH_REFRESH_TOKEN_TTL:14d}
+    password-reset-ttl: ${AUTH_PASSWORD_RESET_TTL:30m}
+    email-verification-ttl: ${AUTH_EMAIL_VERIFICATION_TTL:24h}
+    refresh-cookie-name: schoolz_refresh
+    secure-cookies: ${AUTH_SECURE_COOKIES:false}
+  demo:
+    seed-enabled: ${DEMO_SEED_ENABLED:false}
+    expose-tokens: ${DEMO_EXPOSE_TOKENS:false}
+    tenant-slug: ${DEMO_TENANT_SLUG:}
+    tenant-name: ${DEMO_TENANT_NAME:}
+    admin-email: ${DEMO_ADMIN_EMAIL:}
+    admin-password: ${DEMO_ADMIN_PASSWORD:}
+    teacher-email: ${DEMO_TEACHER_EMAIL:prof.math@schoolz.ma}
+    teacher-password: ${DEMO_TEACHER_PASSWORD:}
+    student-email: ${DEMO_STUDENT_EMAIL:yasmine.eleve@schoolz.ma}
+    student-password: ${DEMO_STUDENT_PASSWORD:}
+  imports:
+    max-rows: ${IMPORT_MAX_ROWS:10000}
+    preview-rows: ${IMPORT_PREVIEW_ROWS:100}
+  payments:
+    sandbox:
+      webhook-secret: ${PAYMENT_SANDBOX_WEBHOOK_SECRET:}
+  storage:
+    provider: ${STORAGE_PROVIDER:jdbc}
+    s3:
+      endpoint: ${S3_ENDPOINT:}
+      bucket: ${S3_BUCKET:}
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
+      auto-create-bucket: ${S3_AUTO_CREATE_BUCKET:false}
+
+logging:
+  pattern:
+    level: "%5p [correlationId=%X{correlationId:-}]"

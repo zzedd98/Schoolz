@@ -1,0 +1,211 @@
+<div class="family-comms">
+  <header class="topbar">
+    <a href="/family" class="brand"><span>S</span><b>Z</b><strong>SchoolZ</strong></a>
+    <nav>
+      <a href="/family">{{ text('Accueil famille', 'فضاء الأسرة') }}</a>
+      <button type="button" (click)="toggleLocale()">
+        {{ i18n.locale() === 'ar-MA' ? 'FR' : 'ع' }}
+      </button>
+      @if (dashboard()) {
+        <button type="button" (click)="logout()">{{ text('Déconnexion', 'خروج') }}</button>
+      }
+    </nav>
+  </header>
+
+  @if (authRequired()) {
+    <main class="login-shell">
+      <section aria-busy="true">
+        <h1>{{ text('Session expirée', 'انتهت صلاحية الجلسة') }}</h1>
+        <p>
+          {{
+            text('Redirection vers la connexion sécurisée…', 'جار التحويل إلى صفحة الدخول الآمنة…')
+          }}
+        </p>
+      </section>
+    </main>
+  } @else if (dashboard(); as data) {
+    <main class="portal">
+      <section class="hero">
+        <div>
+          <p>{{ text('Centre de communications · J18', 'مركز التواصل · المرحلة 18') }}</p>
+          <h1>{{ text('Bonjour,', 'مرحباً،') }} {{ data.parentName }}</h1>
+          <span>
+            {{
+              text(
+                'Les annonces, échanges directs et alertes automatiques restent clairement séparés.',
+                'تظل الإعلانات والمحادثات المباشرة والتنبيهات الآلية مفصولة بوضوح.'
+              )
+            }}
+          </span>
+        </div>
+        <aside>
+          <b>{{ data.notifications.length }}</b>
+          <span>{{ text('notifications', 'إشعارات') }}</span>
+          <small>IN-APP · PUSH · EMAIL · SMS · WHATSAPP</small>
+        </aside>
+      </section>
+
+      @if (notice()) {
+        <p class="feedback">{{ notice() }}</p>
+      }
+      @if (error()) {
+        <p class="feedback error">{{ error() }}</p>
+      }
+
+      <section class="portal-grid">
+        <div class="announcements">
+          <div class="section-title">
+            <div>
+              <small>ANNOUNCEMENT</small>
+              <h2>{{ text('Annonces', 'الإعلانات') }}</h2>
+            </div>
+            <b>{{ data.announcements.length }}</b>
+          </div>
+          @for (announcement of data.announcements; track announcement.id) {
+            <article>
+              <time>{{ announcement.publishedAt | date: 'dd/MM/yyyy · HH:mm' }}</time>
+              <h3>{{ announcement.title }}</h3>
+              <p>{{ announcement.body }}</p>
+              <small>{{ announcement.createdBy }}</small>
+            </article>
+          } @empty {
+            <p class="empty">{{ text('Aucune annonce.', 'لا توجد إعلانات.') }}</p>
+          }
+        </div>
+
+        <div class="conversation-list">
+          <div class="section-title">
+            <div>
+              <small>DIRECT_MESSAGE</small>
+              <h2>{{ text('Conversations', 'المحادثات') }}</h2>
+            </div>
+            <b>{{ data.conversations.length }}</b>
+          </div>
+          @for (conversation of data.conversations; track conversation.id) {
+            <button
+              type="button"
+              [class.active]="selectedConversationId() === conversation.id"
+              (click)="selectConversation(conversation.id)"
+            >
+              <span>{{ conversation.internalName.slice(0, 1) }}</span>
+              <div>
+                <strong>{{ conversation.subject }}</strong>
+                <small>{{ conversation.internalName }} · {{ conversation.studentName }}</small>
+              </div>
+            </button>
+          }
+        </div>
+
+        <div class="thread">
+          @if (selectedConversation(); as conversation) {
+            <div class="section-title">
+              <div>
+                <small>FIL SÉCURISÉ</small>
+                <h2>{{ conversation.subject }}</h2>
+              </div>
+              <b>{{ conversation.status }}</b>
+            </div>
+            <div class="messages">
+              @for (message of conversation.messages; track message.id) {
+                <article [class.mine]="message.senderKind === 'PARENT'">
+                  <small
+                    >{{ message.senderName }} · {{ message.sentAt | date: 'dd/MM HH:mm' }}</small
+                  >
+                  <p>{{ message.body }}</p>
+                </article>
+              }
+            </div>
+            <form (ngSubmit)="reply()">
+              <textarea
+                name="reply"
+                rows="2"
+                maxlength="4000"
+                [(ngModel)]="replyBody"
+                [placeholder]="text('Votre réponse…', 'ردكم…')"
+              ></textarea>
+              <button type="submit" [disabled]="busy()">{{ text('Envoyer', 'إرسال') }}</button>
+            </form>
+          } @else {
+            <p class="empty">{{ text('Aucune conversation.', 'لا توجد محادثات.') }}</p>
+          }
+        </div>
+      </section>
+
+      <section class="notifications">
+        <div class="section-title">
+          <div>
+            <small>AUTOMATED_NOTIFICATION · DELIVERY</small>
+            <h2>{{ text('Centre de notifications', 'مركز الإشعارات') }}</h2>
+          </div>
+          <b>{{ data.notifications.length }}</b>
+        </div>
+        @for (notification of data.notifications; track notification.id) {
+          <article [class.unread]="!notification.readAt">
+            <div>
+              <span>{{ categoryLabel(notification.category) }}</span>
+              <strong>{{ notification.title }}</strong>
+              <p>{{ notification.body }}</p>
+            </div>
+            <div class="delivery-row">
+              @for (delivery of notification.deliveries; track delivery.channel) {
+                <small [class]="delivery.status.toLowerCase()">
+                  {{ delivery.channel }} · {{ delivery.status }}
+                </small>
+              }
+            </div>
+            @if (!notification.readAt) {
+              <button type="button" (click)="read(notification.id)">
+                {{ text('Marquer lu', 'تعليم كمقروء') }}
+              </button>
+            }
+          </article>
+        }
+      </section>
+
+      <section class="preferences">
+        <div class="section-title">
+          <div>
+            <small>NOTIFICATION PREFERENCE</small>
+            <h2>{{ text('Mes préférences', 'تفضيلاتي') }}</h2>
+          </div>
+          <button type="button" (click)="savePreferences()" [disabled]="busy()">
+            {{ text('Enregistrer', 'حفظ') }}
+          </button>
+        </div>
+        <p>
+          {{
+            text(
+              'WhatsApp reste un adaptateur externe : SchoolZ ne le reconstruit pas.',
+              'يبقى WhatsApp موصلاً خارجياً: لا تعيد SchoolZ بناءه.'
+            )
+          }}
+        </p>
+        <div class="preference-table">
+          <div class="preference-head">
+            <span></span>
+            @for (channel of channels; track channel) {
+              <b>{{ channel }}</b>
+            }
+          </div>
+          @for (category of categories; track category) {
+            <div class="preference-row">
+              <strong>{{ categoryLabel(category) }}</strong>
+              @for (channel of channels; track channel) {
+                <button
+                  type="button"
+                  [class.enabled]="preference(category, channel)"
+                  (click)="togglePreference(category, channel)"
+                  [attr.aria-pressed]="preference(category, channel)"
+                >
+                  {{ preference(category, channel) ? '✓' : '—' }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    </main>
+  } @else {
+    <main class="loading">{{ text('Chargement…', 'جار التحميل…') }}</main>
+  }
+</div>

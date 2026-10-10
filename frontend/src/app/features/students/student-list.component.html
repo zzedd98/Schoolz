@@ -1,0 +1,82 @@
+<main class="students-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ i18n.translate('students.eyebrow') }}</p>
+      <h1>{{ i18n.translate('students.title') }}</h1>
+      <p>{{ i18n.translate('students.subtitle') }}</p>
+    </div>
+    <div class="student-count">
+      <strong>{{ students().length }}</strong>
+      <span>{{ i18n.translate('students.records') }}</span>
+    </div>
+  </header>
+
+  <section class="directory">
+    <div class="directory-toolbar">
+      <label>
+        <span aria-hidden="true">⌕</span>
+        <input
+          type="search"
+          [formControl]="search"
+          [placeholder]="i18n.translate('students.search')"
+        />
+      </label>
+      <button mat-stroked-button type="button" (click)="load()">
+        {{ i18n.translate('students.refresh') }}
+      </button>
+    </div>
+
+    @if (loading()) {
+      <div class="state">{{ i18n.translate('common.loading') }}</div>
+    } @else if (failed()) {
+      <div class="state error">{{ i18n.translate('students.error') }}</div>
+    } @else {
+      <div class="student-grid">
+        @for (student of students(); track student.id) {
+          <a class="student-card" [routerLink]="['/app/students', student.id]">
+            <span class="student-avatar">{{ initials(student) }}</span>
+            <div class="student-main">
+              <div class="name-line">
+                <h2>{{ student.firstName }} {{ student.lastName }}</h2>
+                <span [class.archived]="student.status === 'ARCHIVED'">
+                  {{
+                    i18n.translate(
+                      student.status === 'ACTIVE' ? 'students.active' : 'students.archived'
+                    )
+                  }}
+                </span>
+              </div>
+              <p>{{ student.schoolIdentifier }}</p>
+              <dl>
+                <div>
+                  <dt>{{ i18n.translate('students.campus') }}</dt>
+                  <dd>{{ student.campusName ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>{{ i18n.translate('students.classroom') }}</dt>
+                  <dd>{{ student.classroomName ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>{{ i18n.translate('students.birthDate') }}</dt>
+                  <dd>{{ student.birthDate }}</dd>
+                </div>
+              </dl>
+            </div>
+            <span class="open-arrow" aria-hidden="true">→</span>
+          </a>
+        } @empty {
+          <div class="state">{{ i18n.translate('students.empty') }}</div>
+        }
+      </div>
+      <nav class="pagination" aria-label="Pagination des élèves">
+        <button type="button" [disabled]="page() === 0" (click)="changePage(page() - 1)">
+          ← Page précédente
+        </button>
+        <span>Page {{ page() + 1 }}</span>
+        <button type="button" [disabled]="!hasNext()" (click)="changePage(page() + 1)">
+          Page suivante →
+        </button>
+      </nav>
+    }
+  </section>
+</main>

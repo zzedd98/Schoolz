@@ -1,0 +1,142 @@
+<a class="skip-link" href="#workspace-content">{{ i18n.translate('shell.skipContent') }}</a>
+
+<div class="workspace">
+  <aside class="sidebar" [class.open]="menuOpen()">
+    <div class="sidebar-head">
+      <a
+        class="brand"
+        [routerLink]="isTeacher() ? '/app/teacher' : '/app/dashboard'"
+        (click)="closeMenu()"
+      >
+        <span class="brand-mark" aria-hidden="true"><b>S</b><b>Z</b></span>
+        <span>SchoolZ</span>
+      </a>
+      <button class="mobile-close" type="button" (click)="closeMenu()" aria-label="Fermer">
+        ×
+      </button>
+    </div>
+
+    <nav id="workspace-navigation" class="main-navigation" aria-label="Navigation principale">
+      @for (section of navigation; track section.label) {
+        @if (hasVisibleItem(section)) {
+          <section class="nav-section">
+            <p>{{ i18n.translate(section.label) }}</p>
+            @for (item of section.items; track item.path) {
+              @if (isVisible(item)) {
+                <a
+                  [routerLink]="item.path"
+                  routerLinkActive="active"
+                  [routerLinkActiveOptions]="{ exact: true }"
+                  (click)="closeMenu()"
+                  ariaCurrentWhenActive="page"
+                >
+                  <span aria-hidden="true">{{ item.icon }}</span>
+                  {{ i18n.translate(item.label) }}
+                </a>
+              }
+            }
+          </section>
+        }
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <div>
+        <small>{{ i18n.translate('shell.account') }}</small>
+        <strong>{{ auth.user()?.email }}</strong>
+      </div>
+    </div>
+  </aside>
+
+  @if (menuOpen()) {
+    <button class="sidebar-scrim" type="button" (click)="closeMenu()" aria-label="Fermer"></button>
+  }
+
+  <div class="content" id="workspace-content" tabindex="-1">
+    <header class="topbar">
+      <button
+        class="menu-button"
+        type="button"
+        (click)="menuOpen.set(true)"
+        [attr.aria-expanded]="menuOpen()"
+        aria-controls="workspace-navigation"
+        aria-label="Navigation"
+      >
+        ☰
+      </button>
+      <div class="tenant-chip">
+        <span>E</span>
+        <div>
+          <small>{{ i18n.translate('shell.school') }}</small>
+          <strong>{{ tenantSlug || 'SchoolZ' }}</strong>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        @if (auth.hasPermission('global-search.read')) {
+          <a class="topbar-shortcut" routerLink="/app/search">
+            <span aria-hidden="true">⌕</span><b>{{ i18n.translate('shell.searchShortcut') }}</b>
+          </a>
+        }
+        @if (auth.hasPermission('communication.read')) {
+          <a
+            class="topbar-shortcut icon-only"
+            routerLink="/app/notifications"
+            [attr.aria-label]="i18n.translate('shell.notifications')"
+          >
+            <span aria-hidden="true">●</span>
+          </a>
+        }
+        <div class="locale-switch">
+          <button
+            type="button"
+            [class.active]="i18n.locale() === 'fr-MA'"
+            [attr.aria-pressed]="i18n.locale() === 'fr-MA'"
+            aria-label="Afficher en français"
+            (click)="i18n.setLocale('fr-MA')"
+          >
+            FR
+          </button>
+          <button
+            type="button"
+            lang="ar"
+            [class.active]="i18n.locale() === 'ar-MA'"
+            [attr.aria-pressed]="i18n.locale() === 'ar-MA'"
+            aria-label="عرض باللغة العربية"
+            (click)="i18n.setLocale('ar-MA')"
+          >
+            ع
+          </button>
+        </div>
+        <button mat-stroked-button type="button" (click)="logout()">
+          {{ i18n.translate('common.logout') }}
+        </button>
+        <span class="avatar" aria-hidden="true">{{ auth.user()?.displayName?.slice(0, 1) }}</span>
+      </div>
+    </header>
+
+    <router-outlet />
+  </div>
+
+  @if (isTeacher()) {
+    <nav class="teacher-mobile-nav" aria-label="Actions professeur prioritaires">
+      <a routerLink="/app/teacher" routerLinkActive="active"
+        ><span aria-hidden="true">⌂</span>Journée</a
+      >
+      @if (auth.hasPermission('task.read')) {
+        <a routerLink="/app/tasks" routerLinkActive="active"
+          ><span aria-hidden="true">✓</span>Tâches</a
+        >
+      }
+      @if (auth.hasPermission('calendar.read')) {
+        <a routerLink="/app/calendar" routerLinkActive="active"
+          ><span aria-hidden="true">▦</span>Agenda</a
+        >
+      }
+      @if (auth.hasPermission('communication.read')) {
+        <a routerLink="/app/notifications" routerLinkActive="active"
+          ><span aria-hidden="true">●</span>Alertes</a
+        >
+      }
+    </nav>
+  }
+</div>

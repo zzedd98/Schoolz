@@ -1,0 +1,204 @@
+<main class="teacher-page">
+  @if (dashboard(); as day) {
+    <header class="teacher-hero">
+      <div class="hero-copy">
+        <p class="eyebrow">
+          {{ text('Portail professeur', 'فضاء الأستاذ') }}
+        </p>
+        <h1>
+          {{ text('Bonjour', 'مرحباً') }}, <span>{{ day.teacher.firstName }}</span>
+        </h1>
+        <p>
+          {{
+            text(
+              'Votre journée, vos classes et les actions essentielles au même endroit.',
+              'برنامج يومك وأقسامك وإجراءاتك الأساسية في مكان واحد.'
+            )
+          }}
+        </p>
+        <button class="pwa-install" type="button" (click)="install()">
+          <span aria-hidden="true">↓</span>
+          {{
+            standalone()
+              ? text('Application installée', 'التطبيق مثبت')
+              : text('Installer mon espace', 'تثبيت فضائي')
+          }}
+        </button>
+        @if (installHint()) {
+          <small class="install-hint" role="status">
+            {{
+              text(
+                'Utilisez le menu du navigateur puis « Installer SchoolZ ».',
+                'استعمل قائمة المتصفح ثم اختر تثبيت SchoolZ.'
+              )
+            }}
+          </small>
+        }
+      </div>
+      <div class="teacher-identity">
+        <span>{{ day.teacher.firstName.slice(0, 1) }}{{ day.teacher.lastName.slice(0, 1) }}</span>
+        <div>
+          <strong>{{ day.teacher.firstName }} {{ day.teacher.lastName }}</strong
+          ><small>{{ day.teacher.jobTitle }}</small>
+        </div>
+      </div>
+    </header>
+
+    <section class="day-toolbar">
+      <button
+        type="button"
+        (click)="shiftDate(-1)"
+        [attr.aria-label]="text('Jour précédent', 'اليوم السابق')"
+      >
+        ‹
+      </button>
+      <label>
+        <small>{{ isToday() ? text("Aujourd'hui", 'اليوم') : text('Journée', 'اليوم') }}</small>
+        <strong>{{ displayDate(selectedDate()) }}</strong>
+        <input type="date" [value]="selectedDate()" (change)="selectDate($event)" />
+      </label>
+      <button
+        type="button"
+        (click)="shiftDate(1)"
+        [attr.aria-label]="text('Jour suivant', 'اليوم التالي')"
+      >
+        ›
+      </button>
+    </section>
+
+    @if (error()) {
+      <p class="notice error" role="alert">{{ error() }}</p>
+    }
+
+    <section class="summary-strip" [attr.aria-label]="text('Résumé de la journée', 'ملخص اليوم')">
+      <article>
+        <strong>{{ day.summary.lessonCount }}</strong
+        ><span>{{ text('cours', 'حصص') }}</span>
+      </article>
+      <article>
+        <strong>{{ day.summary.completedCount }}</strong
+        ><span>{{ text('terminés', 'منتهية') }}</span>
+      </article>
+      <article>
+        <strong>{{ day.summary.attendanceSubmittedCount }}</strong
+        ><span>{{ text('appels faits', 'حضور مسجل') }}</span>
+      </article>
+    </section>
+
+    <section class="portal-grid">
+      <div class="schedule-panel">
+        <header class="section-title">
+          <div>
+            <p>
+              {{
+                isToday()
+                  ? text("Aujourd'hui", 'اليوم')
+                  : text('Journée sélectionnée', 'اليوم المختار')
+              }}
+            </p>
+            <h2>{{ text('Mon emploi du temps', 'جدولي الزمني') }}</h2>
+          </div>
+          <span>{{ day.lessons.length }}</span>
+        </header>
+
+        <div class="timeline">
+          @for (lesson of day.lessons; track lesson.lessonId) {
+            <article class="lesson" [attr.data-status]="lesson.timelineStatus">
+              <div class="time">
+                <strong>{{ lesson.startsAt.slice(0, 5) }}</strong
+                ><small>{{ lesson.endsAt.slice(0, 5) }}</small>
+              </div>
+              <i [style.background]="lesson.color"></i>
+              <div class="lesson-main">
+                <div class="lesson-heading">
+                  <h3>{{ subjectName(lesson) }}</h3>
+                  <span>{{ timelineLabel(lesson.timelineStatus) }}</span>
+                </div>
+                <p>{{ lesson.classroomName }} <b>·</b> {{ lesson.roomName }}</p>
+                <button
+                  type="button"
+                  (click)="lessonAction(lesson)"
+                  [disabled]="lesson.attendanceStatus === 'SUBMITTED'"
+                >
+                  @if (lesson.attendanceStatus === 'SUBMITTED') {
+                    ✓ {{ text('Appel terminé', 'تم تسجيل الحضور') }}
+                  } @else {
+                    {{ text("Faire l'appel", 'تسجيل الحضور') }} →
+                  }
+                </button>
+              </div>
+            </article>
+          } @empty {
+            <div class="empty-day">
+              <span>☀</span>
+              <h3>{{ text('Aucun cours ce jour', 'لا توجد حصص هذا اليوم') }}</h3>
+              <p>
+                {{
+                  text(
+                    'Profitez de ce temps pour préparer la suite.',
+                    'استفد من هذا الوقت لتحضير الحصص المقبلة.'
+                  )
+                }}
+              </p>
+              @if (day.nextTeachingDate) {
+                <button mat-flat-button type="button" (click)="goToDate(day.nextTeachingDate)">
+                  {{ text('Voir la prochaine journée', 'عرض اليوم الدراسي المقبل') }} ·
+                  {{ displayDate(day.nextTeachingDate) }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <aside class="actions-panel">
+        <header class="section-title">
+          <div>
+            <p>{{ text('Un seul geste', 'بلمسة واحدة') }}</p>
+            <h2>{{ text('Actions rapides', 'إجراءات سريعة') }}</h2>
+          </div>
+        </header>
+        <div class="quick-actions">
+          @for (action of day.quickActions; track action.code) {
+            <button
+              type="button"
+              [disabled]="!action.enabled"
+              (click)="runAction(action)"
+              [attr.data-action]="action.code"
+            >
+              <span>{{ actionIcon(action.code) }}</span
+              ><strong>{{ actionLabel(action) }}</strong>
+              @if (!action.enabled) {
+                <small>{{
+                  action.code === 'MESSAGE'
+                    ? text('Bientôt', 'قريباً')
+                    : text('Indisponible', 'غير متاح')
+                }}</small>
+              }
+            </button>
+          }
+        </div>
+        <div class="day-note">
+          <span>i</span>
+          <p>
+            {{
+              text(
+                'Les raccourcis reprennent automatiquement le cours actif ou le prochain cours.',
+                'تستخدم الاختصارات تلقائياً الحصة الجارية أو الحصة التالية.'
+              )
+            }}
+          </p>
+        </div>
+      </aside>
+    </section>
+  } @else if (busy()) {
+    <section class="loading-state">
+      <span></span>
+      <p>{{ text('Préparation de votre journée…', 'جارٍ تحضير برنامج يومك…') }}</p>
+    </section>
+  } @else if (error()) {
+    <section class="loading-state error">
+      <p>{{ error() }}</p>
+    </section>
+  }
+</main>

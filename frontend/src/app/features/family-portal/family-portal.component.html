@@ -1,0 +1,450 @@
+<main class="family-page" [class.is-busy]="busy()">
+  <header class="topbar">
+    <a class="brand" href="/family" aria-label="SchoolZ, espace famille">
+      <span class="brand-mark"><b>S</b><b>Z</b></span>
+      <span
+        ><strong>SchoolZ</strong><small>{{ text('Espace famille', 'فضاء الأسرة') }}</small></span
+      >
+    </a>
+    <div class="top-actions">
+      @if (dashboard()) {
+        <button class="install-button" type="button" (click)="install()">
+          <span aria-hidden="true">↓</span>
+          {{
+            standalone()
+              ? text('Application installée', 'التطبيق مثبت')
+              : text('Installer l’application', 'تثبيت التطبيق')
+          }}
+        </button>
+      }
+      <button class="locale-button" type="button" (click)="toggleLocale()">
+        {{ i18n.locale() === 'ar-MA' ? 'FR' : 'ع' }}
+      </button>
+      @if (dashboard()) {
+        <button class="logout-button" type="button" (click)="logout()">
+          {{ text('Déconnexion', 'تسجيل الخروج') }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (dashboard(); as data) {
+    <section class="family-header">
+      <div>
+        <p>{{ text('Bonjour', 'مرحباً') }},</p>
+        <h1>{{ data.account.displayName }}</h1>
+        <span>
+          {{
+            text(
+              'Retrouvez l’essentiel de la journée de vos enfants.',
+              'تجدون هنا أهم مستجدات يوم أطفالكم.'
+            )
+          }}
+        </span>
+      </div>
+      <label class="date-picker">
+        <span>{{ text('Journée consultée', 'اليوم المعروض') }}</span>
+        <input type="date" [value]="data.date" (change)="selectDate($event)" />
+      </label>
+    </section>
+
+    <section class="children-strip" aria-label="Choisir un enfant">
+      <div class="strip-title">
+        <span>{{ text('Mes enfants', 'أطفالي') }}</span>
+        <small>{{ data.children.length }} {{ text('profil(s) lié(s)', 'ملف مرتبط') }}</small>
+      </div>
+      <div class="child-list">
+        @for (child of data.children; track child.id) {
+          <button
+            type="button"
+            class="child-chip"
+            [class.selected]="child.id === data.selectedStudentId"
+            [disabled]="busy()"
+            (click)="selectChild(child.id)"
+          >
+            <span class="avatar">{{ initials(child) }}</span>
+            <span>
+              <strong>{{ child.firstName }}</strong>
+              <small>{{
+                child.classroomName ?? text('Profil préscolaire', 'ملف التعليم الأولي')
+              }}</small>
+            </span>
+            @if (child.id === data.selectedStudentId) {
+              <b class="selected-mark" aria-hidden="true">✓</b>
+            }
+          </button>
+        } @empty {
+          <p>{{ text('Aucun enfant lié à ce compte.', 'لا يوجد طفل مرتبط بهذا الحساب.') }}</p>
+        }
+      </div>
+    </section>
+
+    @if (notice()) {
+      <p class="notice" role="status">{{ notice() }}</p>
+    }
+    @if (error()) {
+      <p class="page-error" role="alert">{{ error() }}</p>
+    }
+    @if (installHint()) {
+      <p class="install-hint">
+        {{
+          text(
+            'Pour installer SchoolZ, ouvrez le menu de votre navigateur puis choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil ».',
+            'لتثبيت SchoolZ، افتحوا قائمة المتصفح ثم اختاروا «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».'
+          )
+        }}
+      </p>
+    }
+
+    @if (selectedChild(); as child) {
+      <section class="overview-hero" id="schooling">
+        <div class="student-identity">
+          <span class="large-avatar">{{ initials(child) }}</span>
+          <div>
+            <p>{{ child.studentNumber ?? text('Dossier élève', 'ملف التلميذ') }}</p>
+            <h2>{{ child.fullName }}</h2>
+            <span>
+              {{ child.gradeLevelName ?? text('Préscolaire', 'التعليم الأولي') }}
+              @if (child.classroomName) {
+                · {{ child.classroomName }}
+              }
+            </span>
+          </div>
+        </div>
+        <div class="school-meta">
+          <span
+            ><small>{{ text('Campus', 'المؤسسة') }}</small
+            ><strong>{{ child.campusName ?? '—' }}</strong></span
+          >
+          <span
+            ><small>{{ text('Année scolaire', 'السنة الدراسية') }}</small
+            ><strong>{{ child.academicYearName ?? '—' }}</strong></span
+          >
+        </div>
+        <div class="hero-line" aria-hidden="true"></div>
+      </section>
+
+      @if (data.overview; as overview) {
+        <section class="daily-grid">
+          <article
+            class="daily-card attendance"
+            [class.alert]="overview.attendanceToday.status === 'ABSENT'"
+          >
+            <span class="card-number">01</span>
+            <div>
+              <small>{{ text('Aujourd’hui', 'اليوم') }}</small>
+              <strong>{{ attendanceLabel(overview.attendanceToday.status) }}</strong>
+              <p>
+                {{ overview.attendanceToday.sessionCount }}
+                {{ text('séance(s) enregistrée(s)', 'حصة مسجلة') }}
+              </p>
+            </div>
+          </article>
+          <article class="daily-card grade">
+            <span class="card-number">02</span>
+            <div>
+              <small>{{ text('Dernière note', 'آخر نقطة') }}</small>
+              @if (overview.latestGrade; as grade) {
+                <strong>{{ score(grade) }}</strong>
+                <p>{{ subjectName(grade) }} · {{ grade.title }}</p>
+              } @else {
+                <strong>—</strong>
+                <p>{{ text('Aucune note publiée', 'لا توجد نقطة منشورة') }}</p>
+              }
+            </div>
+          </article>
+          <article class="daily-card homework">
+            <span class="card-number">03</span>
+            <div>
+              <small>{{ text('Prochain devoir', 'الواجب المقبل') }}</small>
+              @if (overview.nextHomework; as homework) {
+                <strong>{{ homework.title }}</strong>
+                <p>{{ subjectName(homework) }} · {{ formatDate(homework.dueAt, true) }}</p>
+              } @else {
+                <strong>{{ text('Rien à rendre', 'لا يوجد واجب') }}</strong>
+                <p>{{ text('Calendrier à jour', 'الجدول محين') }}</p>
+              }
+            </div>
+          </article>
+          <article class="daily-card absence">
+            <span class="card-number">04</span>
+            <div>
+              <small>{{ text('Sur 30 jours', 'خلال 30 يوماً') }}</small>
+              <strong>{{ overview.absenceCount30Days }} {{ text('absence(s)', 'غياب') }}</strong>
+              <p>
+                {{ overview.unexcusedAbsenceCount }} {{ text('à justifier', 'تحتاج إلى تبرير') }}
+              </p>
+            </div>
+          </article>
+        </section>
+      }
+
+      <section class="modules-section">
+        <div class="section-heading">
+          <div>
+            <p>{{ text('Services', 'الخدمات') }}</p>
+            <h2>{{ text('Tout votre espace famille', 'كل خدمات فضاء الأسرة') }}</h2>
+          </div>
+          <span>{{
+            text(
+              'Les services à venir sont clairement signalés.',
+              'الخدمات القادمة مشار إليها بوضوح.'
+            )
+          }}</span>
+        </div>
+        <div class="module-grid">
+          @for (module of data.modules; track module.code; let index = $index) {
+            <button
+              type="button"
+              class="module-card"
+              [class.unavailable]="!module.available"
+              [disabled]="!module.available"
+              (click)="openModule(module)"
+            >
+              <span>{{ moduleIndex(index) }}</span>
+              <strong>{{ moduleLabel(module.code) }}</strong>
+              @if (module.available) {
+                <small>{{ text('Ouvrir', 'فتح') }} →</small>
+              } @else if (module.availableFromMilestone !== null) {
+                <small>{{ text('Disponibilité prévue', 'متاح قريباً') }}</small>
+              } @else {
+                <small>{{ text('Non applicable à ce profil', 'غير متاح لهذا الملف') }}</small>
+              }
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="content-layout">
+        <div class="content-main">
+          <article class="panel" id="timetable">
+            <div class="panel-head">
+              <div>
+                <p>{{ text('Journée', 'اليوم') }}</p>
+                <h2>{{ text('Emploi du temps', 'استعمال الزمن') }}</h2>
+              </div>
+              <time>{{ formatDate(data.date) }}</time>
+            </div>
+            <div class="timeline">
+              @for (lesson of data.timetable; track lesson.id) {
+                <div class="lesson-row">
+                  <time>{{ time(lesson.startsAt) }}</time>
+                  <span class="subject-line" [style.--subject]="lesson.color"></span>
+                  <div>
+                    <strong>{{ subjectName(lesson) }}</strong
+                    ><small>{{ lesson.roomName ?? '—' }} · {{ lesson.teacherName ?? '—' }}</small>
+                  </div>
+                  <time>{{ time(lesson.endsAt) }}</time>
+                </div>
+              } @empty {
+                <div class="empty-state">
+                  <b>—</b>
+                  <p>
+                    {{
+                      text('Aucun cours publié pour cette date.', 'لا توجد حصة منشورة لهذا اليوم.')
+                    }}
+                  </p>
+                </div>
+              }
+            </div>
+          </article>
+
+          <article class="panel" id="grades">
+            <div class="panel-head">
+              <div>
+                <p>{{ text('Évaluations', 'التقييمات') }}</p>
+                <h2>{{ text('Dernières notes publiées', 'آخر النقط المنشورة') }}</h2>
+              </div>
+              <span>{{ data.grades.length }} {{ text('résultat(s)', 'نتيجة') }}</span>
+            </div>
+            <div class="grade-list">
+              @for (grade of data.grades; track grade.id) {
+                <div class="grade-row">
+                  <span class="grade-dot" [style.background]="grade.color"></span>
+                  <div>
+                    <strong>{{ subjectName(grade) }}</strong
+                    ><small>{{ grade.title }} · {{ formatDate(grade.assessmentDate) }}</small>
+                  </div>
+                  <b>{{ score(grade) }}</b>
+                </div>
+              } @empty {
+                <div class="empty-state">
+                  <b>—</b>
+                  <p>
+                    {{ text('Aucune note publiée pour le moment.', 'لا توجد نقطة منشورة حالياً.') }}
+                  </p>
+                </div>
+              }
+            </div>
+          </article>
+
+          <article class="panel" id="report-cards">
+            <div class="panel-head">
+              <div>
+                <p>{{ text('Documents officiels', 'الوثائق الرسمية') }}</p>
+                <h2>{{ text('Bulletins scolaires', 'بيانات النقط') }}</h2>
+              </div>
+            </div>
+            <div class="report-list">
+              @for (report of data.reportCards; track report.id) {
+                <div class="report-row">
+                  <span class="pdf-badge">PDF</span>
+                  <div>
+                    <strong>{{ report.termName }}</strong
+                    ><small
+                      >{{ report.academicYearName }} · v{{ report.versionNumber }} ·
+                      {{ formatDate(report.publishedAt) }}</small
+                    >
+                  </div>
+                  @if (report.overallAverage !== null) {
+                    <b>{{ number(report.overallAverage) }}/20</b>
+                  }
+                  <button type="button" [disabled]="busy()" (click)="download(report)">
+                    {{ text('Télécharger', 'تنزيل') }}
+                  </button>
+                </div>
+              } @empty {
+                <div class="empty-state">
+                  <b>—</b>
+                  <p>{{ text('Aucun bulletin publié.', 'لا يوجد بيان نقط منشور.') }}</p>
+                </div>
+              }
+            </div>
+          </article>
+        </div>
+
+        <aside class="side-column">
+          <article class="panel homework-panel">
+            <div class="panel-head">
+              <div>
+                <p>{{ text('À faire', 'للإنجاز') }}</p>
+                <h2>{{ text('Prochain devoir', 'الواجب المقبل') }}</h2>
+              </div>
+            </div>
+            @if (data.overview?.nextHomework; as homework) {
+              <div class="featured-homework" [style.--subject]="homework.color">
+                <span>{{ subjectName(homework) }}</span>
+                <h3>{{ homework.title }}</h3>
+                <p>{{ homework.instructions }}</p>
+                <div>
+                  <time>{{ formatDate(homework.dueAt, true) }}</time
+                  ><b>{{ homework.estimatedMinutes ?? '—' }} min</b>
+                </div>
+              </div>
+              <button
+                class="panel-action"
+                type="button"
+                (click)="
+                  openModule({
+                    code: 'HOMEWORK',
+                    available: true,
+                    targetPath: '/homework',
+                    availableFromMilestone: null,
+                  })
+                "
+              >
+                {{ text('Voir tous les devoirs', 'عرض كل الواجبات') }} →
+              </button>
+            } @else {
+              <div class="empty-state">
+                <b>✓</b>
+                <p>{{ text('Aucun devoir ouvert.', 'لا يوجد واجب مفتوح.') }}</p>
+              </div>
+            }
+          </article>
+
+          <article class="panel absence-panel">
+            <div class="panel-head">
+              <div>
+                <p>{{ text('Vie scolaire', 'الحياة المدرسية') }}</p>
+                <h2>{{ text('Absences récentes', 'الغيابات الأخيرة') }}</h2>
+              </div>
+            </div>
+            <div class="absence-list">
+              @for (absence of data.absences; track absence.id) {
+                <div class="absence-row">
+                  <time>{{ formatDate(absence.date) }}</time>
+                  <div>
+                    <strong>{{ absence.subjectName ?? text('Journée', 'اليوم') }}</strong
+                    ><small>{{ absenceReason(absence) }}</small>
+                  </div>
+                  <span [class.ok]="absence.resolutionStatus === 'EXCUSED'">{{
+                    absenceLabel(absence.resolutionStatus)
+                  }}</span>
+                </div>
+              } @empty {
+                <div class="empty-state">
+                  <b>✓</b>
+                  <p>{{ text('Aucune absence récente.', 'لا يوجد غياب حديث.') }}</p>
+                </div>
+              }
+            </div>
+            @if (moduleAvailable('ATTENDANCE')) {
+              <button
+                class="panel-action"
+                type="button"
+                (click)="
+                  openModule({
+                    code: 'ATTENDANCE',
+                    available: true,
+                    targetPath: '/attendance',
+                    availableFromMilestone: null,
+                  })
+                "
+              >
+                {{ text('Ouvrir la vie scolaire', 'فتح الحياة المدرسية') }} →
+              </button>
+            }
+          </article>
+        </aside>
+      </section>
+    } @else {
+      <section class="no-child">
+        <h2>{{ text('Aucun enfant n’est encore lié', 'لم يتم ربط أي طفل بعد') }}</h2>
+        <p>
+          {{
+            text(
+              'Contactez votre établissement pour rattacher le dossier scolaire à ce compte.',
+              'تواصلوا مع المؤسسة لربط الملف المدرسي بهذا الحساب.'
+            )
+          }}
+        </p>
+      </section>
+    }
+  } @else {
+    @if (error()) {
+      <section class="no-child" role="alert">
+        <h2>{{ text('Espace momentanément indisponible', 'الفضاء غير متاح مؤقتاً') }}</h2>
+        <p>{{ error() }}</p>
+        <button class="panel-action" type="button" (click)="retry()">
+          {{ text('Réessayer', 'إعادة المحاولة') }}
+        </button>
+      </section>
+    } @else {
+      <section class="loading-screen" aria-live="polite">
+        <span></span>
+        <p>{{ text('Préparation de votre espace famille…', 'جار إعداد فضاء الأسرة…') }}</p>
+      </section>
+    }
+  }
+
+  @if (busy() && dashboard()) {
+    <div class="busy-line" aria-hidden="true"></div>
+  }
+
+  <footer>
+    <div class="brand">
+      <span class="brand-mark"><b>S</b><b>Z</b></span
+      ><span><strong>SchoolZ</strong><small>School ERP Maroc</small></span>
+    </div>
+    <p>
+      {{
+        text(
+          'Vos données familiales restent isolées dans l’espace sécurisé de votre établissement.',
+          'تبقى معطيات أسرتكم معزولة داخل الفضاء الآمن لمؤسستكم.'
+        )
+      }}
+    </p>
+    <span>© 2026</span>
+  </footer>
+</main>

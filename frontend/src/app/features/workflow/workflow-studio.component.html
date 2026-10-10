@@ -1,0 +1,330 @@
+<main class="workflow-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span>Automatisation maîtrisée</span>
+      <h1>Du signal<br />à <em>l’action.</em></h1>
+      <p>
+        Composez des automatismes lisibles, observez chaque décision et gardez la main sur leur
+        activation.
+      </p>
+    </div>
+    <div class="hero-flow" aria-hidden="true">
+      <i></i><strong>WHEN</strong><b></b><strong>IF</strong><b></b><strong>THEN</strong><i></i>
+    </div>
+    <div class="hero-actions">
+      <button type="button" class="ghost" (click)="eventOpen.set(true)">Tester un événement</button>
+      <button type="button" class="bright" (click)="openBuilder()">+ Composer un workflow</button>
+    </div>
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="message success" role="status">{{ success() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="loading"><span></span>Lecture des chaînes d’automatisation…</div>
+  } @else if (data(); as dashboard) {
+    <section class="guard-band">
+      <div><strong>Protection anti-boucle active</strong><span>Ascendance contrôlée</span></div>
+      <p>
+        <b>{{ dashboard.loopPolicy.maximumDepth }}</b> niveaux maximum
+      </p>
+      <p>
+        <b>{{ dashboard.loopPolicy.maximumExecutionsPerRoot }}</b> exécutions par événement racine
+      </p>
+      <p>
+        <b>{{ dashboard.statistics.loopBlocks }}</b> boucle(s) arrêtée(s) et journalisée(s)
+      </p>
+    </section>
+
+    <section class="metrics">
+      <div>
+        <strong>{{ dashboard.statistics.activeWorkflows }}</strong
+        ><span>workflows actifs</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.completedExecutions }}</strong
+        ><span>exécutions réussies</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.actionsExecuted }}</strong
+        ><span>actions distribuées</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.skippedExecutions }}</strong
+        ><span>conditions non remplies</span>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Vues du studio workflow">
+      <button type="button" [class.active]="tab() === 'workflows'" (click)="tab.set('workflows')">
+        Chaînes configurées <span>{{ dashboard.workflows.length }}</span>
+      </button>
+      <button type="button" [class.active]="tab() === 'executions'" (click)="tab.set('executions')">
+        Journal d’exécution <span>{{ dashboard.executions.length }}</span>
+      </button>
+    </nav>
+
+    @if (tab() === 'workflows') {
+      <section class="studio-view">
+        <header class="section-head">
+          <div>
+            <span>WHEN · IF · THEN</span>
+            <h2>Des règles que l’équipe peut relire</h2>
+          </div>
+          <p>
+            Chaque ligne expose son déclencheur, ses conditions et ses actions dans l’ordre réel.
+          </p>
+        </header>
+        <div class="workflow-stream">
+          @for (workflow of dashboard.workflows; track workflow.id; let index = $index) {
+            <article class="workflow-line" [class.paused]="!workflow.active">
+              <div class="workflow-intro">
+                <span class="index">{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</span>
+                <div>
+                  <small>{{ workflow.code }}</small>
+                  <h3>{{ workflow.name }}</h3>
+                  <p>{{ workflow.description }}</p>
+                </div>
+              </div>
+              <div class="flow-chain">
+                <div class="node trigger">
+                  <small>WHEN</small><strong>{{ workflow.trigger.eventType }}</strong
+                  ><span>{{ workflow.trigger.sourceModule }}</span>
+                </div>
+                <i>→</i>
+                <div class="node condition">
+                  <small>IF</small>
+                  @for (condition of workflow.conditions; track condition.id) {
+                    <strong
+                      >{{ condition.fieldPath }} {{ operator(condition.operator) }}
+                      {{ condition.expectedValue ?? '' }}</strong
+                    >
+                  } @empty {
+                    <strong>Toujours</strong>
+                  }
+                </div>
+                <i>→</i>
+                <div class="node actions">
+                  <small>THEN</small>
+                  @for (action of workflow.actions; track action.id) {
+                    <span
+                      ><b>{{ actionName(action.actionType) }}</b
+                      >{{ action.label }}</span
+                    >
+                  }
+                </div>
+              </div>
+              <div class="workflow-state">
+                <span [class.on]="workflow.active">{{
+                  workflow.active ? 'Actif' : 'En pause'
+                }}</span>
+                <button type="button" (click)="toggle(workflow.id, !workflow.active)">
+                  {{ workflow.active ? 'Mettre en pause' : 'Activer' }}
+                </button>
+                <small>Profondeur {{ workflow.maxDepth }}</small>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    @if (tab() === 'executions') {
+      <section class="execution-view">
+        <header class="section-head">
+          <div>
+            <span>Preuve d’exécution</span>
+            <h2>Chaque décision laisse une trace</h2>
+          </div>
+          <p>Déclencheur, condition, action et garde anti-boucle sont consultables pas à pas.</p>
+        </header>
+        <div class="execution-stream">
+          @for (execution of recentExecutions(); track execution.id) {
+            <button
+              type="button"
+              class="execution-line status-{{ execution.status.toLowerCase() }}"
+              (click)="inspect(execution)"
+            >
+              <span class="status-dot"></span>
+              <time>{{ dateTime(execution.startedAt) }}</time>
+              <div>
+                <strong>{{ execution.workflowName }}</strong>
+                <p>{{ execution.eventType }} · {{ payload(execution.payload) }}</p>
+              </div>
+              <span class="depth">niveau {{ execution.depth }}</span>
+              <b>{{ status(execution.status) }}</b>
+              <span class="arrow">→</span>
+            </button>
+          }
+        </div>
+      </section>
+    }
+  }
+</main>
+
+@if (builderOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="builderOpen.set(false)"></button>
+  <aside class="drawer builder" aria-label="Composer un workflow">
+    <button class="close" type="button" aria-label="Fermer" (click)="builderOpen.set(false)">
+      ×
+    </button>
+    <span class="drawer-kicker">Nouveau workflow</span>
+    <h2>Composer la chaîne</h2>
+    <div class="two">
+      <label
+        ><span>Code *</span
+        ><input [(ngModel)]="workflowForm.code" placeholder="RELANCE_J15" /></label
+      ><label
+        ><span>Profondeur max.</span
+        ><input type="number" min="1" max="12" [(ngModel)]="workflowForm.maxDepth"
+      /></label>
+    </div>
+    <label><span>Nom *</span><input [(ngModel)]="workflowForm.name" /></label>
+    <label
+      ><span>Description *</span
+      ><textarea rows="3" [(ngModel)]="workflowForm.description"></textarea>
+    </label>
+    <section class="builder-step when">
+      <b>WHEN</b
+      ><label
+        ><span>Événement</span
+        ><select [(ngModel)]="workflowForm.trigger.eventType">
+          @for (event of data()?.supportedEvents ?? []; track event) {
+            <option [value]="event">{{ event }}</option>
+          }
+        </select></label
+      ><label
+        ><span>Module source</span><input [(ngModel)]="workflowForm.trigger.sourceModule"
+      /></label>
+    </section>
+    <section class="builder-step if">
+      <header><b>IF</b><button type="button" (click)="addCondition()">+ Condition</button></header>
+      @for (condition of workflowForm.conditions; track $index; let index = $index) {
+        <div class="condition-row">
+          <input [(ngModel)]="condition.fieldPath" placeholder="days" /><select
+            [(ngModel)]="condition.operator"
+          >
+            <option>EQ</option>
+            <option>NE</option>
+            <option>GT</option>
+            <option>GTE</option>
+            <option>LT</option>
+            <option>LTE</option>
+            <option>EXISTS</option>
+            <option>IN</option></select
+          ><input [(ngModel)]="condition.expectedValue" placeholder="7" /><select
+            [(ngModel)]="condition.valueType"
+          >
+            <option>STRING</option>
+            <option>NUMBER</option>
+            <option>BOOLEAN</option></select
+          ><button type="button" (click)="removeCondition(index)">×</button>
+        </div>
+      } @empty {
+        <p>Aucune condition : la chaîne s’exécutera à chaque événement.</p>
+      }
+    </section>
+    <section class="builder-step then">
+      <header><b>THEN</b><button type="button" (click)="addAction()">+ Action</button></header>
+      @for (action of workflowForm.actions; track $index; let index = $index) {
+        <div class="action-row">
+          <select [(ngModel)]="action.actionType">
+            @for (type of data()?.supportedActions ?? []; track type) {
+              <option [value]="type">{{ actionName(type) }}</option>
+            }</select
+          ><input [(ngModel)]="action.label" placeholder="Libellé de l’action" /><button
+            type="button"
+            (click)="removeAction(index)"
+          >
+            ×
+          </button>
+        </div>
+      }
+    </section>
+    <label class="check"
+      ><input type="checkbox" [(ngModel)]="workflowForm.active" /> Activer après création</label
+    >
+    <button
+      class="submit"
+      type="button"
+      [disabled]="busy() || !workflowForm.code || !workflowForm.name || !workflowForm.description"
+      (click)="create()"
+    >
+      {{ busy() ? 'Enregistrement…' : 'Enregistrer le workflow' }}
+    </button>
+  </aside>
+}
+
+@if (eventOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="eventOpen.set(false)"></button>
+  <aside class="drawer event-drawer" aria-label="Tester un événement">
+    <button class="close" type="button" aria-label="Fermer" (click)="eventOpen.set(false)">
+      ×
+    </button>
+    <span class="drawer-kicker">Banc d’essai</span>
+    <h2>Émettre un événement</h2>
+    <p>
+      Un identifiant unique est généré. Le moteur évalue uniquement les workflows actifs du tenant.
+    </p>
+    <label
+      ><span>Type</span
+      ><select [(ngModel)]="eventType">
+        @for (event of data()?.supportedEvents ?? []; track event) {
+          <option [value]="event">{{ event }}</option>
+        }
+      </select></label
+    >
+    @if (eventType === 'invoice.overdue') {
+      <label><span>Jours de retard</span><input type="number" [(ngModel)]="eventDays" /></label>
+    }
+    @if (eventType === 'student.absence.created') {
+      <label class="check"
+        ><input type="checkbox" [(ngModel)]="eventUnjustified" /> Absence non justifiée</label
+      >
+    }
+    <div class="guard-note">
+      <strong>Le garde-fou reste actif</strong>
+      <p>
+        La démo `workflow.demo.loop` réémet son propre événement : le second passage est bloqué et
+        journalisé.
+      </p>
+    </div>
+    <button class="submit" type="button" [disabled]="busy()" (click)="simulate()">
+      {{ busy() ? 'Distribution…' : 'Distribuer dans le moteur' }}
+    </button>
+  </aside>
+}
+
+@if (executionOpen() && selectedExecution(); as execution) {
+  <button
+    class="scrim"
+    type="button"
+    aria-label="Fermer"
+    (click)="executionOpen.set(false)"
+  ></button>
+  <aside class="drawer execution-drawer" aria-label="Détail d’exécution">
+    <button class="close" type="button" aria-label="Fermer" (click)="executionOpen.set(false)">
+      ×
+    </button>
+    <span class="drawer-kicker">{{ status(execution.status) }}</span>
+    <h2>{{ execution.workflowName }}</h2>
+    <p>{{ execution.eventType }} · niveau {{ execution.depth }}</p>
+    <div class="payload">{{ payload(execution.payload) }}</div>
+    <div class="log-timeline">
+      @for (log of execution.logs; track log.id) {
+        <article class="log-{{ log.level.toLowerCase() }}">
+          <span>{{ log.sequence + 1 }}</span>
+          <div>
+            <small>{{ log.stepType }}</small
+            ><strong>{{ log.message }}</strong
+            ><time>{{ dateTime(log.occurredAt) }}</time>
+          </div>
+        </article>
+      }
+    </div>
+  </aside>
+}

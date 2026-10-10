@@ -1,0 +1,365 @@
+:host {
+  min-height: 100dvh;
+  display: block;
+}
+
+.auth-page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(420px, 0.92fr) minmax(520px, 1.08fr);
+  background: #f8f9fa;
+}
+
+.story-panel {
+  position: relative;
+  min-height: 100%;
+  padding: 42px clamp(38px, 6vw, 86px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  color: white;
+  background:
+    radial-gradient(circle at 13% 78%, rgb(56 189 248 / 24%), transparent 30%),
+    radial-gradient(circle at 88% 8%, rgb(59 130 246 / 18%), transparent 24%), var(--gradient-deep);
+}
+
+.story-top,
+.brand,
+.locale-switch {
+  display: flex;
+  align-items: center;
+}
+
+.story-top {
+  z-index: 2;
+  justify-content: space-between;
+}
+
+.brand {
+  gap: 12px;
+  color: white;
+  text-decoration: none;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.brand-mark {
+  position: relative;
+  width: 42px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-primary);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 14px 5px 14px 5px;
+  box-shadow: 0 14px 32px rgb(37 99 235 / 30%);
+}
+
+.brand-mark b {
+  position: absolute;
+  font-size: 14px;
+}
+
+.brand-mark b:first-child {
+  translate: -5px -4px;
+}
+
+.brand-mark b:last-child {
+  translate: 5px 5px;
+  color: var(--sand-300);
+}
+
+.locale-switch {
+  padding: 3px;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 11px;
+}
+
+.locale-switch button {
+  min-height: 31px;
+  padding: 0 9px;
+  color: rgb(255 255 255 / 58%);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.locale-switch button.active {
+  color: var(--ink-950);
+  background: var(--sand-300);
+}
+
+.story-copy {
+  z-index: 2;
+  max-width: 570px;
+  margin-block: 100px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #d7b76f;
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.story-copy h1 {
+  margin: 21px 0 46px;
+  font-size: clamp(2.8rem, 4.7vw, 5rem);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.story-copy ul {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  list-style: none;
+}
+
+.story-copy li {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: rgb(255 255 255 / 76%);
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 14px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.story-copy li span {
+  color: var(--sand-300);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.story-decoration {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.story-decoration::before {
+  content: '';
+  position: absolute;
+  inset-inline-end: -220px;
+  bottom: -180px;
+  width: 570px;
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 55px rgb(255 255 255 / 2%),
+    0 0 0 110px rgb(255 255 255 / 2%);
+}
+
+.form-panel {
+  padding: 48px clamp(28px, 7vw, 120px);
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: min(490px, 100%);
+}
+
+.login-card header h2 {
+  margin: 13px 0 10px;
+  color: var(--ink-950);
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  letter-spacing: -0.055em;
+}
+
+.login-card header > p:last-child {
+  margin: 0 0 31px;
+  color: var(--ink-500);
+  line-height: 1.65;
+}
+
+.login-card > header .eyebrow {
+  color: var(--blue-700);
+}
+
+.portal-context {
+  margin: -15px 0 20px;
+  padding: 12px 14px;
+  color: #163f76;
+  border-inline-start: 4px solid var(--blue-650);
+  border-radius: 8px;
+  background: #eaf4ff;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+form,
+mat-form-field {
+  width: 100%;
+}
+
+form {
+  display: grid;
+  gap: 3px;
+}
+
+.form-meta {
+  margin: 2px 2px 16px;
+  display: flex;
+  justify-content: flex-end;
+  color: var(--ink-400);
+  font-size: 14px;
+}
+
+.form-meta a {
+  color: var(--blue-700);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.form-error {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  color: #8f3528;
+  background: #fff0ec;
+  border: 1px solid #f2d4cc;
+  border-radius: 11px;
+  font-size: 14px;
+}
+
+.submit-button {
+  min-height: 52px;
+  --mdc-filled-button-container-color: var(--blue-700);
+  --mdc-filled-button-label-text-color: white;
+}
+
+.submit-button .mdc-button__label {
+  width: 100%;
+}
+
+.submit-button span {
+  margin-inline: 5px;
+}
+
+.demo-card {
+  margin-top: 28px;
+  padding: 18px;
+  background: #fffdfa;
+  border: 1px solid #eadfc8;
+  border-radius: 17px;
+}
+
+.demo-card > div:first-child {
+  display: flex;
+  gap: 12px;
+}
+
+.demo-card strong {
+  color: var(--ink-800);
+  font-size: 15px;
+}
+
+.demo-card p {
+  margin: 4px 0 0;
+  color: var(--ink-500);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.demo-pulse {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  background: #d8a84f;
+  border: 3px solid #f5e7c8;
+  border-radius: 50%;
+  background-clip: padding-box;
+}
+
+.demo-card dl {
+  margin: 16px 0 12px;
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+  background: white;
+  border: 1px solid #eee6d7;
+  border-radius: 11px;
+}
+
+.demo-card dl div {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+}
+
+.demo-card dt {
+  color: var(--ink-400);
+  font-size: 13px;
+}
+
+.demo-card dd {
+  margin: 0;
+  color: var(--ink-700);
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.demo-card button {
+  width: 100%;
+  min-height: 40px;
+}
+
+.demo-card button + button {
+  margin-top: 8px;
+}
+
+@media (max-width: 920px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .story-panel {
+    min-height: auto;
+    padding: 28px;
+  }
+
+  .story-copy {
+    margin: 70px 0 45px;
+  }
+
+  .story-copy h1 {
+    max-width: 650px;
+  }
+
+  .form-panel {
+    padding-block: 65px;
+  }
+}
+
+@media (max-width: 560px) {
+  .story-copy ul {
+    display: none;
+  }
+
+  .story-copy h1 {
+    margin-bottom: 0;
+    font-size: 2.7rem;
+  }
+
+  .form-panel {
+    padding: 45px 20px;
+  }
+}

@@ -1,0 +1,133 @@
+<main class="transport-page">
+  <header class="hero">
+    <div>
+      <p>TRANSPORT SCOLAIRE</p>
+      <h1>{{ text('Du circuit au pointage bus.', 'من المسار إلى تسجيل الحافلة.') }}</h1>
+      <span>{{
+        text(
+          'Onze entités opérationnelles, sans dépendance à un fournisseur GPS.',
+          'أحد عشر كياناً عملياً دون الارتباط بمزود GPS معين.'
+        )
+      }}</span>
+    </div>
+    <div class="gps">
+      <small>GPSProvider</small><strong>{{ dashboard()?.gpsProviders?.join(' · ') }}</strong
+      ><span>{{ text('Adaptateur local de démonstration', 'موصل تجريبي محلي') }}</span>
+    </div>
+  </header>
+  @if (error()) {
+    <p class="feedback error">{{ error() }}</p>
+  }
+  @if (notice()) {
+    <p class="feedback success">{{ notice() }}</p>
+  }
+  @if (dashboard(); as d) {
+    <section class="metrics">
+      <article>
+        <span>{{ text('Bus', 'الحافلات') }}</span
+        ><strong>{{ d.vehicles.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Circuits', 'المسارات') }}</span
+        ><strong>{{ d.routes.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('Abonnés', 'المشتركون') }}</span
+        ><strong>{{ d.subscriptions.length }}</strong>
+      </article>
+      <article>
+        <span>{{ text('À bord', 'على متن الحافلة') }}</span
+        ><strong>{{ d.trips[0]?.onboardCount ?? 0 }}</strong>
+      </article>
+    </section>
+    <section class="grid">
+      <article class="panel">
+        <h2>{{ text('Flotte & équipe', 'الأسطول والفريق') }}</h2>
+        @for (v of d.vehicles; track v.id) {
+          <div class="row">
+            <span class="bus">BUS</span>
+            <div>
+              <strong>{{ v.code }} · {{ v.registrationNumber }}</strong
+              ><small>{{ v.makeModel }} · {{ v.capacity }} places · {{ v.status }}</small>
+            </div>
+          </div>
+        }
+        @for (driver of d.drivers; track driver.id) {
+          <div class="person">
+            <span>CH</span><strong>{{ driver.displayName }}</strong>
+          </div>
+        }
+        @for (assistant of d.assistants; track assistant.id) {
+          <div class="person">
+            <span>AC</span><strong>{{ assistant.displayName }}</strong>
+          </div>
+        }
+      </article>
+      <article class="panel">
+        <h2>{{ text('Circuit', 'المسار') }}</h2>
+        @for (route of d.routes; track route.id) {
+          <h3>{{ route.name }}</h3>
+          <div class="stops">
+            @for (stop of route.stops; track stop.id) {
+              <div>
+                <span>{{ stop.sequence }}</span
+                ><strong>{{ stop.name }}</strong
+                ><small>+{{ stop.plannedOffsetMinutes }} min</small>
+              </div>
+            }
+          </div>
+        }
+      </article>
+      <article class="panel wide">
+        <h2>{{ text('Trajet en cours', 'الرحلة الجارية') }}</h2>
+        @for (trip of d.trips; track trip.id) {
+          <div class="trip">
+            <div>
+              <span class="live">{{ trip.status }}</span>
+              <h3>{{ trip.routeName }} · {{ trip.direction }}</h3>
+              <p>
+                {{ trip.vehicleCode }} · {{ trip.driverName }} · {{ trip.onboardCount }}/{{
+                  trip.capacity
+                }}
+              </p>
+            </div>
+            <div class="position">
+              <strong
+                >{{ trip.latestPosition?.latitude }}, {{ trip.latestPosition?.longitude }}</strong
+              ><small
+                >{{ trip.latestPosition?.providerKey }} ·
+                {{ trip.latestPosition?.recordedAt | date: 'HH:mm:ss' }}</small
+              >
+            </div>
+          </div>
+        }
+      </article>
+    </section>
+    <section class="panel operations">
+      <div>
+        <h2>{{ text('Présence bus', 'الحضور في الحافلة') }}</h2>
+        <p>
+          {{
+            text(
+              'Pointage manuel, QR ou NFC ; capacité contrôlée.',
+              'تسجيل يدوي أو QR أو NFC مع مراقبة السعة.'
+            )
+          }}
+        </p>
+      </div>
+      <select [(ngModel)]="tripId">
+        @for (trip of d.trips; track trip.id) {
+          <option [value]="trip.id">{{ trip.routeName }} · {{ trip.direction }}</option>
+        }</select
+      ><select [(ngModel)]="subscriptionId">
+        @for (sub of d.subscriptions; track sub.id) {
+          <option [value]="sub.id">{{ sub.studentName }} · {{ sub.pickupStopName }}</option>
+        }</select
+      ><button type="button" (click)="pickup()" [disabled]="busy()">
+        {{ text('Montée', 'صعود') }}</button
+      ><button type="button" (click)="dropoff()" [disabled]="busy()">
+        {{ text('Descente', 'نزول') }}</button
+      ><button type="button" (click)="move()" [disabled]="busy()">GPS +</button>
+    </section>
+  }
+</main>

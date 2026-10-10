@@ -1,0 +1,161 @@
+<main class="signature-page">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">SIGNATURES & VALIDATIONS</p>
+      <h1>
+        {{
+          text(
+            'Une preuve de parcours, sans promesse trompeuse.',
+            'مسار إثبات واضح دون ادعاء مضلل.'
+          )
+        }}
+      </h1>
+      <p>
+        {{ text(dashboard()?.legalNotice?.['fr'] ?? '', dashboard()?.legalNotice?.['ar'] ?? '') }}
+      </p>
+    </div>
+    <div class="assurance">
+      <span>{{ text('Niveau fourni', 'المستوى المقدم') }}</span>
+      <strong>SIMPLE_ELECTRONIC_ACCEPTANCE</strong>
+      <small>{{ text('Non qualifié juridiquement', 'غير مؤهل قانونياً') }}</small>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="feedback error">{{ error() }}</p>
+  }
+  @if (notice()) {
+    <p class="feedback success">{{ notice() }}</p>
+  }
+
+  @if (dashboard(); as dashboard) {
+    <section class="layout">
+      <aside class="panel queue">
+        <h2>
+          {{ text('Dossiers', 'الملفات') }} <span>{{ dashboard.workflows.length }}</span>
+        </h2>
+        @for (workflow of dashboard.workflows; track workflow.id) {
+          <button
+            type="button"
+            [class.active]="selectedId() === workflow.id"
+            (click)="select(workflow)"
+          >
+            <span class="status" [attr.data-status]="workflow.status">{{ workflow.status }}</span>
+            <strong>{{ workflow.documentTitle }}</strong>
+            <small>v{{ workflow.versionNumber }} · {{ workflow.recipientName }}</small>
+          </button>
+        } @empty {
+          <p>{{ text('Aucun workflow.', 'لا توجد مسارات.') }}</p>
+        }
+      </aside>
+
+      <section class="panel detail">
+        @if (selected(); as workflow) {
+          <div class="detail-head">
+            <div>
+              <p>{{ workflow.documentType }} · v{{ workflow.versionNumber }}</p>
+              <h2>{{ workflow.documentTitle }}</h2>
+              <span>{{ workflow.recipientName }} · {{ workflow.recipientEmail }}</span>
+            </div>
+            @if (workflow.status === 'GENERATED') {
+              <button class="primary" type="button" (click)="send()" [disabled]="busy()">
+                {{ text('Envoyer', 'إرسال') }}
+              </button>
+            }
+          </div>
+
+          <div class="timeline">
+            @for (status of statuses; track status; let index = $index) {
+              <article [class.reached]="reached(workflow, status)">
+                <span>{{ index + 1 }}</span>
+                <div>
+                  <strong>{{ status }}</strong>
+                  <small>
+                    {{
+                      timestamp(workflow, status)
+                        ? (timestamp(workflow, status) | date: 'dd/MM/yyyy HH:mm:ss')
+                        : '—'
+                    }}
+                  </small>
+                </div>
+              </article>
+            }
+          </div>
+
+          <dl>
+            <div>
+              <dt>Document SHA-256</dt>
+              <dd>{{ workflow.documentSha256 }}</dd>
+            </div>
+            <div>
+              <dt>{{ text('Version notice', 'نسخة الإشعار') }}</dt>
+              <dd>{{ workflow.legalNoticeVersion }}</dd>
+            </div>
+            <div>
+              <dt>{{ text('Fournisseur', 'المزود') }}</dt>
+              <dd>{{ workflow.providerKey || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ text('Signataire', 'الموقع') }}</dt>
+              <dd>{{ workflow.signatoryName || '—' }}</dd>
+            </div>
+            <div>
+              <dt>IP</dt>
+              <dd>{{ workflow.signatoryIp || '—' }}</dd>
+            </div>
+            <div>
+              <dt>Evidence SHA-256</dt>
+              <dd>{{ workflow.evidenceSha256 || '—' }}</dd>
+            </div>
+          </dl>
+
+          <div class="events">
+            <h3>{{ text('Historique des validations', 'سجل المصادقات') }}</h3>
+            @for (event of workflow.events; track event.id) {
+              <article>
+                <span>{{ event.toStatus }}</span>
+                <div>
+                  <strong>{{ event.actorName }}</strong
+                  ><small
+                    >{{ event.occurredAt | date: 'dd/MM/yyyy HH:mm:ss' }} ·
+                    {{ event.ipAddress || '—' }}</small
+                  >
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <p>{{ text('Sélectionnez un workflow.', 'اختر مساراً.') }}</p>
+        }
+      </section>
+    </section>
+
+    <form class="panel composer" (ngSubmit)="create()">
+      <div>
+        <p class="eyebrow">NOUVEAU PARCOURS</p>
+        <h2>{{ text('Figer une version et choisir un signataire', 'تثبيت نسخة واختيار موقع') }}</h2>
+      </div>
+      <label>
+        {{ text('Document', 'الوثيقة') }}
+        <select [(ngModel)]="documentId" name="documentId">
+          @for (document of dashboard.documents; track document.id) {
+            <option [value]="document.id">
+              {{ document.title }} · v{{ document.currentVersion }}
+            </option>
+          }
+        </select>
+      </label>
+      <label>
+        {{ text('Famille', 'الأسرة') }}
+        <select [(ngModel)]="parentId" name="parentId">
+          @for (parent of dashboard.parents; track parent.id) {
+            <option [value]="parent.id">{{ parent.displayName }} · {{ parent.email }}</option>
+          }
+        </select>
+      </label>
+      <button class="primary" type="submit" [disabled]="!documentId || !parentId || busy()">
+        {{ text('Générer le workflow', 'إنشاء المسار') }}
+      </button>
+    </form>
+  }
+</main>

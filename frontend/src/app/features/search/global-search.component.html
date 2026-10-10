@@ -1,0 +1,103 @@
+<main class="search-page">
+  <section class="search-hero">
+    <div class="hero-copy">
+      <span>Recherche globale</span>
+      <h1>Une école entière,<br /><em>à portée de mots.</em></h1>
+      <p>
+        Retrouvez une personne, une classe, une facture ou un document avec le même geste, en
+        français comme en arabe.
+      </p>
+    </div>
+
+    <form class="search-box" (ngSubmit)="submit()">
+      <span aria-hidden="true">⌕</span>
+      <label>
+        <small>Que cherchez-vous ?</small>
+        <input
+          name="query"
+          [(ngModel)]="query"
+          autocomplete="off"
+          dir="auto"
+          placeholder="Yasmine, فاتورة, 1AP, certificat…"
+        />
+      </label>
+      <button type="submit">Rechercher</button>
+    </form>
+    <div class="language-note"><b>FR</b><i></i><b lang="ar">عر</b> accents et voyelles tolérés</div>
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="message success" role="status">{{ message() }}</p>
+  }
+
+  <section class="filter-river" aria-label="Types de résultats">
+    <button type="button" [class.active]="!activeType" (click)="selectType('')">
+      <span>TO</span><b>Tout</b>
+    </button>
+    @for (type of data()?.availableTypes ?? []; track type) {
+      <button type="button" [class.active]="activeType === type" (click)="selectType(type)">
+        <span>{{ icons[type] }}</span
+        ><b>{{ labels[type] }}</b
+        ><small>{{ data()?.facets?.[type] ?? 0 }}</small>
+      </button>
+    }
+  </section>
+
+  @if (loading()) {
+    <section class="loading"><i></i>La bibliothèque d’informations s’ouvre…</section>
+  } @else if (data(); as results) {
+    <section class="results-head">
+      <div>
+        <span>Résultats autorisés</span>
+        <h2>Pour « {{ results.query }} »</h2>
+      </div>
+      <p>{{ results.items.length }} résultat(s) sur cette page · {{ results.tookMs }} ms</p>
+    </section>
+
+    <section class="results-stream">
+      @for (item of results.items; track item.type + item.sourceId; let index = $index) {
+        <a [routerLink]="item.routePath">
+          <span class="result-number">{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</span>
+          <span class="result-icon">{{ icons[item.type] }}</span>
+          <span class="result-copy">
+            <small>{{ labels[item.type] }}</small>
+            <strong>{{ item.displayName }}</strong>
+            <span>{{ item.secondaryText }}</span>
+          </span>
+          <span class="result-arrow" aria-hidden="true">↗</span>
+        </a>
+      } @empty {
+        <div class="empty">
+          <b>⌕</b>
+          <h3>Aucun résultat visible</h3>
+          <p>Essayez un nom plus court, un numéro, ou retirez le filtre actif.</p>
+        </div>
+      }
+    </section>
+
+    <footer class="pagination">
+      <button type="button" [disabled]="results.page === 0" (click)="go(results.page - 1)">
+        ← Précédent
+      </button>
+      <span>Page {{ results.page + 1 }}</span>
+      <button type="button" [disabled]="!results.hasNext" (click)="go(results.page + 1)">
+        Suivant →
+      </button>
+    </footer>
+  } @else {
+    <section class="invitation">
+      <div><b>01</b><span>Nom, numéro ou mot-clé</span></div>
+      <div><b>02</b><span>Résultats filtrés par vos droits</span></div>
+      <div><b>03</b><span>Accès direct à la bonne fiche</span></div>
+    </section>
+  }
+
+  @if (auth.hasPermission('global-search.manage')) {
+    <button class="refresh" type="button" [disabled]="refreshing()" (click)="refresh()">
+      {{ refreshing() ? 'Indexation…' : 'Actualiser l’index PostgreSQL' }}
+    </button>
+  }
+</main>

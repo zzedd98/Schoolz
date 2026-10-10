@@ -1,0 +1,300 @@
+<main class="custom-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span>Votre école, vos repères</span>
+      <h1>Le cadre reste solide.<br /><em>Les détails vous ressemblent.</em></h1>
+      <p>
+        Ajoutez les informations propres à votre établissement sans modifier le cœur de SchoolZ :
+        chaque champ garde son type, ses choix et ses permissions.
+      </p>
+      <button type="button" (click)="openBuilder()">+ Dessiner un nouveau champ</button>
+    </div>
+    <div class="shape-field" aria-hidden="true">
+      <i class="shape text">Aa</i><i class="shape number">42</i><i class="shape date">12</i
+      ><i class="shape bool">✓</i><span></span>
+    </div>
+  </section>
+
+  @if (error()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="message success" role="status">{{ success() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="loading"><span></span>Composition de l’atelier…</div>
+  } @else if (data(); as dashboard) {
+    <section class="control-ribbon">
+      <div class="entity-types" aria-label="Types de dossiers">
+        @for (type of dashboard.supportedEntityTypes; track type) {
+          <button type="button" [class.active]="entityType() === type" (click)="selectType(type)">
+            {{ entityName(type) }}
+          </button>
+        }
+      </div>
+      <label>
+        <span>Dossier à renseigner</span>
+        <select [ngModel]="entityId()" (ngModelChange)="selectEntity($event)">
+          @for (entity of dashboard.entities; track entity.id) {
+            <option [value]="entity.id">{{ entity.label }}</option>
+          }
+        </select>
+      </label>
+    </section>
+
+    <section class="metrics" aria-label="Résumé des champs">
+      <div>
+        <strong>{{ dashboard.statistics.definitionCount }}</strong
+        ><span>champs visibles</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.securedCount }}</strong
+        ><span>protégés par permission</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.populatedCount }}</strong
+        ><span>déjà renseignés</span>
+      </div>
+      <div>
+        <strong>{{ dashboard.statistics.emptyCount }}</strong
+        ><span>à compléter</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <header class="section-head">
+        <div>
+          <span>Fiche adaptable · {{ entityName(dashboard.entityType) }}</span>
+          <h2>
+            {{
+              dashboard.entities.length
+                ? 'Les détails qui comptent ici'
+                : 'Aucun dossier disponible'
+            }}
+          </h2>
+        </div>
+        <p>
+          Le type pilote le contrôle de saisie. Un verrou indique qu’une permission métier
+          supplémentaire protège le champ.
+        </p>
+      </header>
+
+      <div class="field-stream">
+        @for (definition of dashboard.definitions; track definition.id; let index = $index) {
+          <article [class.inactive]="!definition.active">
+            <div class="field-index">
+              <span>{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</span
+              ><i></i>
+            </div>
+            <div class="field-story">
+              <div class="field-title">
+                <small>{{ typeName(definition.type) }}</small>
+                @if (definition.readPermission || definition.writePermission) {
+                  <span title="Permission spécifique">⌾ Protégé</span>
+                }
+              </div>
+              <h3>
+                {{ definition.label }}
+                @if (definition.required) {
+                  <b>*</b>
+                }
+              </h3>
+              <p>{{ definition.description }}</p>
+              <code>{{ definition.key }}</code>
+            </div>
+            <div class="field-input">
+              @switch (definition.type) {
+                @case ('TEXT') {
+                  <input
+                    type="text"
+                    [ngModel]="value(definition.id)"
+                    (ngModelChange)="setValue(definition.id, $event)"
+                    [placeholder]="definition.label"
+                  />
+                }
+                @case ('NUMBER') {
+                  <input
+                    type="number"
+                    [ngModel]="value(definition.id)"
+                    (ngModelChange)="setValue(definition.id, $event)"
+                    [placeholder]="definition.label"
+                  />
+                }
+                @case ('DATE') {
+                  <input
+                    type="date"
+                    [ngModel]="value(definition.id)"
+                    (ngModelChange)="setValue(definition.id, $event)"
+                  />
+                }
+                @case ('BOOLEAN') {
+                  <select
+                    [ngModel]="value(definition.id)"
+                    (ngModelChange)="setValue(definition.id, $event)"
+                  >
+                    <option [ngValue]="true">Oui</option>
+                    <option [ngValue]="false">Non</option>
+                  </select>
+                }
+                @case ('SELECT') {
+                  <select
+                    [ngModel]="value(definition.id)"
+                    (ngModelChange)="setValue(definition.id, $event)"
+                  >
+                    <option value="" disabled>Choisir…</option>
+                    @for (option of definition.options; track option) {
+                      <option [value]="option">{{ option }}</option>
+                    }
+                  </select>
+                }
+                @case ('MULTI_SELECT') {
+                  <div class="option-cloud">
+                    @for (option of definition.options; track option) {
+                      <label [class.checked]="hasOption(definition.id, option)">
+                        <input
+                          type="checkbox"
+                          [checked]="hasOption(definition.id, option)"
+                          (change)="
+                            toggleOption(definition.id, option, $any($event.target).checked)
+                          "
+                        />
+                        {{ option }}
+                      </label>
+                    }
+                  </div>
+                }
+              }
+              <div class="input-actions">
+                @if (!definition.required && value(definition.id) !== null) {
+                  <button type="button" class="clear" (click)="clear(definition)">Effacer</button>
+                }
+                <button
+                  type="button"
+                  class="save"
+                  [disabled]="savingId() === definition.id || !dashboard.selectedEntityId"
+                  (click)="save(definition)"
+                >
+                  {{ savingId() === definition.id ? 'Enregistrement…' : 'Enregistrer' }}
+                </button>
+              </div>
+            </div>
+            <aside class="permission-note">
+              @if (definition.readPermission) {
+                <span>Lecture</span><code>{{ definition.readPermission }}</code>
+              }
+              @if (definition.writePermission) {
+                <span>Écriture</span><code>{{ definition.writePermission }}</code>
+              }
+              @if (!definition.readPermission && !definition.writePermission) {
+                <span>Accès</span><strong>Permission standard du module</strong>
+              }
+            </aside>
+          </article>
+        } @empty {
+          <div class="empty">
+            <strong>La page est encore vierge.</strong>
+            <p>
+              Créez le premier champ pour ce type de dossier ; aucune migration supplémentaire ne
+              sera nécessaire.
+            </p>
+            <button type="button" (click)="openBuilder()">Créer un champ</button>
+          </div>
+        }
+      </div>
+    </section>
+  }
+</main>
+
+@if (builderOpen()) {
+  <button class="scrim" type="button" aria-label="Fermer" (click)="builderOpen.set(false)"></button>
+  <aside class="drawer" aria-label="Créer un champ personnalisé">
+    <button class="close" type="button" aria-label="Fermer" (click)="builderOpen.set(false)">
+      ×
+    </button>
+    <span class="drawer-kicker">Nouvelle définition</span>
+    <h2>Donner une place à l’information</h2>
+    <p>
+      La clé et le type seront figés après création pour préserver toutes les valeurs existantes.
+    </p>
+    <div class="two">
+      <label
+        ><span>Dossier</span
+        ><select [(ngModel)]="form.entityType">
+          @for (type of data()?.supportedEntityTypes ?? []; track type) {
+            <option [value]="type">{{ entityName(type) }}</option>
+          }
+        </select></label
+      >
+      <label
+        ><span>Type</span
+        ><select [(ngModel)]="form.type">
+          @for (type of data()?.supportedFieldTypes ?? []; track type) {
+            <option [value]="type">{{ typeName(type) }}</option>
+          }
+        </select></label
+      >
+    </div>
+    <label
+      ><span>Libellé *</span><input [(ngModel)]="form.label" placeholder="Ex. Code transport"
+    /></label>
+    <label
+      ><span>Nom interne *</span><input [(ngModel)]="form.key" placeholder="code_service"
+    /></label>
+    <label
+      ><span>Aide affichée</span><textarea rows="3" [(ngModel)]="form.description"></textarea>
+    </label>
+    @if (usesOptions(form.type)) {
+      <label
+        ><span>Options · une par ligne *</span
+        ><textarea
+          rows="5"
+          [(ngModel)]="optionsText"
+          placeholder="Option A&#10;Option B"
+        ></textarea>
+      </label>
+    }
+    <div class="two">
+      <label
+        ><span>Permission de lecture</span
+        ><select [(ngModel)]="form.readPermission">
+          <option [ngValue]="null">Aucune permission supplémentaire</option>
+          @for (permission of data()?.availablePermissions ?? []; track permission) {
+            <option [value]="permission">{{ permission }}</option>
+          }
+        </select></label
+      >
+      <label
+        ><span>Permission d’écriture</span
+        ><select [(ngModel)]="form.writePermission">
+          <option [ngValue]="null">Aucune permission supplémentaire</option>
+          @for (permission of data()?.availablePermissions ?? []; track permission) {
+            <option [value]="permission">{{ permission }}</option>
+          }
+        </select></label
+      >
+    </div>
+    <div class="two compact">
+      <label
+        ><span>Ordre</span><input type="number" min="0" [(ngModel)]="form.displayOrder"
+      /></label>
+      <label class="check"
+        ><input type="checkbox" [(ngModel)]="form.required" /> Valeur obligatoire</label
+      >
+    </div>
+    <div class="immutability">
+      <span>◇</span>
+      <p>Les valeurs resteront rattachées à l’établissement et vérifiées avant enregistrement.</p>
+    </div>
+    <button
+      class="submit"
+      type="button"
+      [disabled]="
+        busy() || !form.label || !form.key || (usesOptions(form.type) && !optionsText.trim())
+      "
+      (click)="create()"
+    >
+      {{ busy() ? 'Création…' : 'Créer le champ' }}
+    </button>
+  </aside>
+}

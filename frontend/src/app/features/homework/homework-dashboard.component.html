@@ -1,0 +1,342 @@
+<main class="homework-page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">{{ text('Cahier de texte', 'دفتر النصوص') }}</p>
+      <h1>{{ text('Cours et devoirs, sans complexité inutile', 'الدروس والواجبات دون تعقيد') }}</h1>
+      <p>
+        {{
+          text(
+            'Publiez le travail réellement donné en classe, avec une échéance et les fichiers utiles.',
+            'انشر العمل المقدم فعلياً في القسم مع الموعد والملفات الضرورية.'
+          )
+        }}
+      </p>
+    </div>
+    <span class="privacy-badge">{{ text('Portée école isolée', 'نطاق المدرسة معزول') }}</span>
+  </header>
+
+  <section class="scope-card">
+    <label>
+      <span>{{ text('Classe', 'القسم') }}</span>
+      <select [value]="selectedClassroomId()" (change)="selectClassroom($event)">
+        @for (classroom of references()?.classrooms ?? []; track classroom.id) {
+          <option [value]="classroom.id">
+            {{ classroom.name }} · {{ classroom.gradeLevelName }}
+          </option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ text('Période', 'الفترة') }}</span>
+      <select [value]="selectedTermId()" (change)="selectTerm($event)">
+        @for (term of availableTerms(); track term.id) {
+          <option [value]="term.id">{{ term.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ text('Du', 'من') }}</span>
+      <input type="date" [value]="from()" (change)="selectRange('from', $event)" />
+    </label>
+    <label>
+      <span>{{ text('Au', 'إلى') }}</span>
+      <input type="date" [value]="to()" (change)="selectRange('to', $event)" />
+    </label>
+  </section>
+
+  @if (error()) {
+    <p class="notice error">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="notice success">{{ message() }}</p>
+  }
+
+  @if (dashboard(); as data) {
+    <section class="metrics" aria-label="Indicateurs">
+      <article>
+        <strong>{{ data.studentCount }}</strong
+        ><span>{{ text('élèves', 'تلميذاً') }}</span>
+      </article>
+      <article>
+        <strong>{{ data.lessonContents.length }}</strong
+        ><span>{{ text('contenus de cours', 'محتويات الدروس') }}</span>
+      </article>
+      <article>
+        <strong>{{ data.homework.length }}</strong
+        ><span>{{ text('devoirs planifiés', 'واجبات مبرمجة') }}</span>
+      </article>
+      <article>
+        <strong>{{ data.publishedHomeworkCount }}</strong
+        ><span>{{ text('devoirs visibles', 'واجبات ظاهرة') }}</span>
+      </article>
+    </section>
+
+    @if (auth.hasPermission('homework.write')) {
+      <section class="editors">
+        <form class="editor-card" (submit)="$event.preventDefault(); createLesson()">
+          <div class="card-title">
+            <span class="step">01</span>
+            <div>
+              <h2>{{ text('Ajouter le cours', 'إضافة الدرس') }}</h2>
+              <p>{{ text('Ce qui a été travaillé en classe', 'ما تم إنجازه في القسم') }}</p>
+            </div>
+          </div>
+          <label
+            ><span>{{ text('Matière et professeur', 'المادة والأستاذ') }}</span
+            ><select [(ngModel)]="lessonAssignment" name="lessonAssignment" required>
+              @for (assignment of availableAssignments(); track assignment.id) {
+                <option [value]="assignment.id">
+                  {{ subjectName(assignment) }} · {{ assignment.teacherName }}
+                </option>
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Date du cours', 'تاريخ الدرس') }}</span
+            ><input type="date" [(ngModel)]="lessonDate" name="lessonDate" required
+          /></label>
+          <label
+            ><span>{{ text('Titre', 'العنوان') }}</span
+            ><input [(ngModel)]="lessonTitle" name="lessonTitle" maxlength="180" required
+          /></label>
+          <label
+            ><span>{{ text('Résumé court', 'ملخص قصير') }}</span
+            ><input [(ngModel)]="lessonSummary" name="lessonSummary" maxlength="1000"
+          /></label>
+          <label
+            ><span>{{ text('Contenu réalisé', 'المحتوى المنجز') }}</span
+            ><textarea
+              [(ngModel)]="lessonContent"
+              name="lessonContent"
+              rows="4"
+              required
+            ></textarea>
+          </label>
+          <label class="file-field"
+            ><span>{{
+              text('Fichier facultatif · 10 Mo max.', 'ملف اختياري · 10 ميغابايت كحد أقصى')
+            }}</span
+            ><input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.txt,.docx,.pptx"
+              (change)="selectFile('LESSON', $event)"
+          /></label>
+          <button mat-flat-button type="submit" [disabled]="busy()">
+            {{ text('Créer le brouillon', 'إنشاء المسودة') }}
+          </button>
+        </form>
+
+        <form
+          id="homework-editor"
+          class="editor-card gold"
+          (submit)="$event.preventDefault(); createHomework()"
+        >
+          <div class="card-title">
+            <span class="step">02</span>
+            <div>
+              <h2>{{ text('Donner un devoir', 'إضافة واجب') }}</h2>
+              <p>{{ text('Consigne, échéance et durée', 'التعليمات والموعد والمدة') }}</p>
+            </div>
+          </div>
+          <label
+            ><span>{{ text('Matière et professeur', 'المادة والأستاذ') }}</span
+            ><select [(ngModel)]="homeworkAssignment" name="homeworkAssignment" required>
+              @for (assignment of availableAssignments(); track assignment.id) {
+                <option [value]="assignment.id">
+                  {{ subjectName(assignment) }} · {{ assignment.teacherName }}
+                </option>
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Cours lié (facultatif)', 'الدرس المرتبط (اختياري)') }}</span
+            ><select [(ngModel)]="homeworkLesson" name="homeworkLesson">
+              <option value="">{{ text('Aucun', 'بدون') }}</option>
+              @for (lesson of publishedLessons(); track lesson.id) {
+                <option [value]="lesson.id">{{ lesson.title }}</option>
+              }
+            </select></label
+          >
+          <label
+            ><span>{{ text('Titre', 'العنوان') }}</span
+            ><input [(ngModel)]="homeworkTitle" name="homeworkTitle" maxlength="180" required
+          /></label>
+          <label
+            ><span>{{ text('Consignes', 'التعليمات') }}</span
+            ><textarea
+              [(ngModel)]="homeworkInstructions"
+              name="homeworkInstructions"
+              rows="4"
+              required
+            ></textarea>
+          </label>
+          <div class="inline-fields">
+            <label
+              ><span>{{ text('Donné le', 'تاريخ الإسناد') }}</span
+              ><input type="date" [(ngModel)]="homeworkAssignedOn" name="assignedOn" required
+            /></label>
+            <label
+              ><span>{{ text('À rendre avant', 'آخر أجل') }}</span
+              ><input type="datetime-local" [(ngModel)]="homeworkDueAt" name="dueAt" required
+            /></label>
+            <label
+              ><span>{{ text('Minutes', 'دقائق') }}</span
+              ><input type="number" min="1" max="600" [(ngModel)]="homeworkMinutes" name="minutes"
+            /></label>
+          </div>
+          <label class="file-field"
+            ><span>{{
+              text('Fichier facultatif · 10 Mo max.', 'ملف اختياري · 10 ميغابايت كحد أقصى')
+            }}</span
+            ><input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.txt,.docx,.pptx"
+              (change)="selectFile('HOMEWORK', $event)"
+          /></label>
+          <button mat-flat-button type="submit" [disabled]="busy()">
+            {{ text('Créer le brouillon', 'إنشاء المسودة') }}
+          </button>
+        </form>
+      </section>
+    }
+
+    <section class="timeline-grid">
+      <article class="timeline-panel">
+        <div class="section-head">
+          <div>
+            <p>{{ text('Journal de classe', 'سجل القسم') }}</p>
+            <h2>{{ text('Contenus de cours', 'محتويات الدروس') }}</h2>
+          </div>
+          <span>{{ data.lessonContents.length }}</span>
+        </div>
+        <div class="timeline">
+          @for (lesson of data.lessonContents; track lesson.id) {
+            <article class="timeline-item">
+              <time>{{ formatDate(lesson.lessonDate) }}</time>
+              <div class="item-card">
+                <div class="item-head">
+                  <span class="subject" [style.--subject]="lesson.color">{{
+                    subjectName(lesson)
+                  }}</span
+                  ><span class="status" [class.draft]="lesson.status === 'DRAFT'">{{
+                    statusLabel(lesson.status)
+                  }}</span>
+                </div>
+                <h3>{{ lesson.title }}</h3>
+                @if (lesson.summary) {
+                  <p class="summary">{{ lesson.summary }}</p>
+                }
+                <p>{{ lesson.content }}</p>
+                <small>{{ lesson.teacherName }}</small>
+                <div class="attachments">
+                  @for (attachment of lesson.attachments; track attachment.id) {
+                    <button type="button" (click)="download(attachment)">
+                      ↧ {{ attachment.fileName }}
+                    </button>
+                  }
+                </div>
+                @if (lesson.status === 'DRAFT' && auth.hasPermission('homework.publish')) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="publishLesson(lesson)"
+                  >
+                    {{ text('Publier', 'نشر') }}
+                  </button>
+                }
+              </div>
+            </article>
+          } @empty {
+            <p class="empty">
+              {{ text('Aucun contenu sur cette période.', 'لا يوجد محتوى خلال هذه الفترة.') }}
+            </p>
+          }
+        </div>
+      </article>
+
+      <article class="timeline-panel assignments-panel">
+        <div class="section-head">
+          <div>
+            <p>{{ text('Calendrier', 'التقويم') }}</p>
+            <h2>{{ text('Devoirs et échéances', 'الواجبات والمواعيد') }}</h2>
+          </div>
+          <span>{{ data.homework.length }}</span>
+        </div>
+        <div class="homework-list">
+          @for (homework of data.homework; track homework.id) {
+            <article class="homework-card" [class.overdue]="homework.overdue">
+              <div class="due-date">
+                <small>{{ text('À rendre', 'آخر أجل') }}</small
+                ><strong>{{ formatDate(homework.dueAt) }}</strong>
+              </div>
+              <div class="homework-body">
+                <div class="item-head">
+                  <span class="subject" [style.--subject]="homework.color">{{
+                    subjectName(homework)
+                  }}</span
+                  ><span class="status" [class.draft]="homework.status === 'DRAFT'">{{
+                    statusLabel(homework.status)
+                  }}</span>
+                </div>
+                <h3>{{ homework.title }}</h3>
+                <p>{{ homework.instructions }}</p>
+                <div class="metadata">
+                  <span>◷ {{ homework.estimatedMinutes ?? '—' }} min</span
+                  ><span>{{ homework.teacherName }}</span>
+                </div>
+                @if (homework.status !== 'DRAFT') {
+                  <div class="progress">
+                    <div>
+                      <span
+                        >{{ text('Fait', 'منجز') }} {{ homework.completedStudents }}/{{
+                          homework.totalStudents
+                        }}</span
+                      ><strong>{{ completion(homework) }}%</strong>
+                    </div>
+                    <progress max="100" [value]="completion(homework)"></progress>
+                  </div>
+                }
+                <div class="attachments">
+                  @for (attachment of homework.attachments; track attachment.id) {
+                    <button type="button" (click)="download(attachment)">
+                      ↧ {{ attachment.fileName }}
+                    </button>
+                  }
+                </div>
+                <div class="actions">
+                  @if (homework.status === 'DRAFT' && auth.hasPermission('homework.publish')) {
+                    <button
+                      mat-flat-button
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="publishHomework(homework)"
+                    >
+                      {{ text('Publier', 'نشر') }}
+                    </button>
+                  }
+                  @if (homework.status === 'PUBLISHED' && auth.hasPermission('homework.publish')) {
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="closeHomework(homework)"
+                    >
+                      {{ text('Clôturer', 'إغلاق') }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </article>
+          } @empty {
+            <p class="empty">
+              {{ text('Aucun devoir sur cette période.', 'لا يوجد واجب خلال هذه الفترة.') }}
+            </p>
+          }
+        </div>
+      </article>
+    </section>
+  } @else if (busy()) {
+    <p class="loading">{{ text('Chargement du cahier de texte…', 'جار تحميل دفتر النصوص…') }}</p>
+  }
+</main>

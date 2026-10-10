@@ -1,0 +1,107 @@
+<main class="vault" [attr.dir]="i18n.locale() === 'ar-MA' ? 'rtl' : 'ltr'">
+  <header class="topbar">
+    <a class="brand" routerLink="/family"><span>SZ</span> SchoolZ</a>
+    <nav>
+      <a routerLink="/family">{{ text('Accueil', 'الرئيسية') }}</a>
+      <a routerLink="/messages">{{ text('Messages', 'الرسائل') }}</a>
+      <a class="active" routerLink="/documents">{{ text('Documents', 'الوثائق') }}</a>
+      <a routerLink="/signatures">{{ text('Signatures', 'التوقيعات') }}</a>
+      <a routerLink="/finance">{{ text('Finance', 'المالية') }}</a>
+    </nav>
+    <button type="button" (click)="toggleLocale()">
+      {{ i18n.locale() === 'ar-MA' ? 'FR' : 'ع' }}
+    </button>
+  </header>
+
+  @if (authRequired()) {
+    <section class="login-shell">
+      <div class="login-copy">
+        <p class="eyebrow">COFFRE FAMILLE · SCHOOLZ</p>
+        <h1>{{ text('Session expirée', 'انتهت صلاحية الجلسة') }}</h1>
+        <p>
+          {{
+            text('Redirection vers la connexion sécurisée…', 'جار التحويل إلى صفحة الدخول الآمنة…')
+          }}
+        </p>
+      </div>
+    </section>
+  } @else if (dashboard(); as dashboard) {
+    <section class="hero">
+      <div>
+        <p class="eyebrow">DOCUMENTS FAMILLE</p>
+        <h1>{{ text('Bonjour', 'مرحباً') }}, {{ dashboard.parentName }}</h1>
+        <p>
+          {{
+            text(
+              'Vous voyez uniquement les documents que votre établissement a partagés avec votre compte.',
+              'لا تظهر هنا إلا الوثائق التي شاركتها المؤسسة مع حسابكم.'
+            )
+          }}
+        </p>
+      </div>
+      <div class="security-note">
+        <strong>{{ text('Téléchargement protégé', 'تنزيل محمي') }}</strong>
+        <span>{{
+          text('URL signée · 10 minutes · 3 usages', 'رابط موقّع · 10 دقائق · 3 استعمالات')
+        }}</span>
+      </div>
+    </section>
+
+    @if (error()) {
+      <p class="feedback error">{{ error() }}</p>
+    }
+    @if (notice()) {
+      <p class="feedback success">{{ notice() }}</p>
+    }
+
+    <section class="document-grid">
+      @for (document of dashboard.documents; track document.id) {
+        <article>
+          <div class="card-top">
+            <span class="type">{{ typeLabel(document.documentType) }}</span>
+            <span class="version">v{{ document.currentVersion }}</span>
+          </div>
+          <h2>{{ document.title }}</h2>
+          <p>{{ document.description || document.categoryLabel }}</p>
+          <dl>
+            <div>
+              <dt>{{ text('Mis à jour', 'آخر تحديث') }}</dt>
+              <dd>{{ document.updatedAt | date: 'dd/MM/yyyy' }}</dd>
+            </div>
+            <div>
+              <dt>{{ text('Expiration', 'الانتهاء') }}</dt>
+              <dd>{{ document.expiresOn ? (document.expiresOn | date: 'dd/MM/yyyy') : '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ text('Taille', 'الحجم') }}</dt>
+              <dd>{{ document.versions[0].sizeBytes / 1024 | number: '1.0-1' }} Ko</dd>
+            </div>
+          </dl>
+          <div class="integrity">
+            <span>SHA-256</span>
+            <code>{{ document.versions[0].sha256.slice(0, 24) }}…</code>
+          </div>
+          <button class="primary" type="button" (click)="download(document)" [disabled]="busy()">
+            {{ text('Créer mon lien et télécharger', 'إنشاء الرابط والتنزيل') }}
+          </button>
+        </article>
+      } @empty {
+        <div class="empty">
+          <strong>{{ text('Aucun document partagé', 'لا توجد وثائق مشتركة') }}</strong>
+          <p>
+            {{
+              text('Votre établissement ajoutera ici vos documents.', 'ستضيف المؤسسة وثائقكم هنا.')
+            }}
+          </p>
+        </div>
+      }
+    </section>
+
+    <footer>
+      <span>{{ dashboard.storage['contract'] }}</span>
+      <button type="button" (click)="logout()">{{ text('Se déconnecter', 'تسجيل الخروج') }}</button>
+    </footer>
+  } @else {
+    <p class="loading">{{ text('Ouverture du coffre…', 'جار فتح الخزنة…') }}</p>
+  }
+</main>

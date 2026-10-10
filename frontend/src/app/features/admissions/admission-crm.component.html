@@ -1,0 +1,209 @@
+<main class="admissions-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ text('Admissions CRM', 'نظام إدارة القبول') }}</p>
+      <h1>{{ text('Du premier contact à l’inscription.', 'من أول تواصل إلى التسجيل.') }}</h1>
+      <p>
+        {{
+          text(
+            'Pilotez chaque famille dans un pipeline clair, mesurable et collaboratif.',
+            'تابع كل أسرة في مسار واضح وقابل للقياس والتعاون.'
+          )
+        }}
+      </p>
+    </div>
+    <div class="heading-actions">
+      <button mat-stroked-button type="button" (click)="showProspectForm.set(true)">
+        {{ text('+ Prospect', '+ مهتم') }}
+      </button>
+      <button mat-flat-button type="button" (click)="showCampaignForm.set(true)">
+        {{ text('Nouvelle campagne', 'حملة جديدة') }}
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="alert" role="alert">{{ error() }}</div>
+  }
+
+  <section class="campaign-bar">
+    <div>
+      <span>{{ text('Campagne active', 'الحملة النشطة') }}</span>
+      <strong>{{ campaignName() }}</strong>
+    </div>
+    <select [value]="selectedCampaignId()" (change)="selectCampaign($event)">
+      @for (campaign of campaigns(); track campaign.id) {
+        <option [value]="campaign.id">{{ campaign.name }} · {{ campaign.status }}</option>
+      }
+    </select>
+    @if (busy()) {
+      <small>{{ text('Synchronisation…', 'جارٍ التحديث…') }}</small>
+    }
+  </section>
+
+  @if (dashboard(); as stats) {
+    <section class="metrics" aria-label="Indicateurs admissions">
+      <article>
+        <span>{{ text('Prospects', 'المهتمون') }}</span
+        ><strong>{{ stats.prospects }}</strong>
+        <small>{{ text('contacts qualifiés', 'جهات اتصال مؤهلة') }}</small>
+      </article>
+      <article>
+        <span>{{ text('Dossiers', 'الملفات') }}</span
+        ><strong>{{ stats.applications }}</strong>
+        <small>{{ stats.conversionRate }}% {{ text('de conversion', 'نسبة التحويل') }}</small>
+      </article>
+      <article class="warning">
+        <span>{{ text('Incomplets', 'غير مكتملة') }}</span
+        ><strong>{{ stats.incompleteApplications }}</strong>
+        <small>{{ text('à relancer', 'تحتاج متابعة') }}</small>
+      </article>
+      <article>
+        <span>{{ text('Acceptations', 'القبول') }}</span
+        ><strong>{{ stats.acceptances }}</strong>
+        <small>{{ stats.acceptanceRate }}% {{ text('des dossiers', 'من الملفات') }}</small>
+      </article>
+      <article class="success">
+        <span>{{ text('Inscriptions', 'التسجيلات') }}</span
+        ><strong>{{ stats.enrollments }}</strong>
+        <small>{{ text('offres confirmées', 'عروض مؤكدة') }}</small>
+      </article>
+      <article class="sources">
+        <span>{{ text('Origines', 'المصادر') }}</span>
+        <div>
+          @for (source of stats.sources; track source.source) {
+            <small
+              >{{ source.source }} <b>{{ source.count }}</b></small
+            >
+          } @empty {
+            <small>—</small>
+          }
+        </div>
+      </article>
+    </section>
+  }
+
+  @if (board(); as kanban) {
+    <section class="kanban" aria-label="Pipeline d'admission">
+      @for (column of kanban.columns; track column.status) {
+        <article
+          class="kanban-column"
+          [attr.data-stage]="column.status"
+          (dragover)="allowDrop($event)"
+          (drop)="drop(column.status)"
+        >
+          <header>
+            <span></span>
+            <strong>{{ stageLabel(column.status) }}</strong>
+            <b>{{ column.cards.length }}</b>
+          </header>
+          <div class="card-stack">
+            @for (card of column.cards; track card.cardType + card.id) {
+              <button
+                type="button"
+                class="pipeline-card"
+                draggable="true"
+                (dragstart)="beginDrag(card)"
+              >
+                <span class="card-kind">{{
+                  card.cardType === 'PROSPECT' ? 'LEAD' : 'DOSSIER'
+                }}</span>
+                <strong>{{ card.primaryName }}</strong>
+                <small>{{ card.secondaryName || card.email || '—' }}</small>
+                @if (card.reference) {
+                  <code>{{ card.reference }}</code>
+                }
+                @if (card.cardType === 'APPLICATION') {
+                  <div class="progress"><i [style.width.%]="card.completenessPercent"></i></div>
+                  <em>{{ card.completenessPercent }}%</em>
+                } @else {
+                  <em>{{ card.source }} · {{ card.grade || '—' }}</em>
+                }
+              </button>
+            } @empty {
+              <div class="empty-column">{{ text('Déposez ici', 'أسقط هنا') }}</div>
+            }
+          </div>
+        </article>
+      }
+    </section>
+  }
+
+  @if (showCampaignForm()) {
+    <div class="modal-backdrop">
+      <section class="modal">
+        <p class="eyebrow">{{ text('Configuration', 'الإعداد') }}</p>
+        <h2>{{ text('Nouvelle campagne', 'حملة جديدة') }}</h2>
+        <form [formGroup]="campaignForm" (ngSubmit)="createCampaign()">
+          <label>{{ text('Code', 'الرمز') }}<input formControlName="code" /></label>
+          <label>{{ text('Nom', 'الاسم') }}<input formControlName="name" /></label>
+          <label class="wide"
+            >{{ text('Description', 'الوصف') }}<textarea formControlName="description"></textarea>
+          </label>
+          <label
+            >{{ text('Ouverture', 'الافتتاح') }}<input type="date" formControlName="opensOn"
+          /></label>
+          <label
+            >{{ text('Clôture', 'الإغلاق') }}<input type="date" formControlName="closesOn"
+          /></label>
+          <label
+            >{{ text('Frais (MAD)', 'الرسوم (درهم)')
+            }}<input type="number" formControlName="applicationFee"
+          /></label>
+          <div class="form-actions wide">
+            <button mat-button type="button" (click)="showCampaignForm.set(false)">
+              {{ text('Annuler', 'إلغاء') }}
+            </button>
+            <button mat-flat-button type="submit" [disabled]="campaignForm.invalid || busy()">
+              {{ text('Créer', 'إنشاء') }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (showProspectForm()) {
+    <div class="modal-backdrop">
+      <section class="modal">
+        <p class="eyebrow">{{ text('Premier contact', 'أول تواصل') }}</p>
+        <h2>{{ text('Ajouter un prospect', 'إضافة مهتم') }}</h2>
+        <form [formGroup]="prospectForm" (ngSubmit)="createProspect()">
+          <label
+            >{{ text('Prénom parent', 'اسم ولي الأمر') }}<input formControlName="firstName"
+          /></label>
+          <label
+            >{{ text('Nom parent', 'نسب ولي الأمر') }}<input formControlName="lastName"
+          /></label>
+          <label
+            >{{ text('E-mail', 'البريد الإلكتروني') }}<input type="email" formControlName="email"
+          /></label>
+          <label>{{ text('Téléphone', 'الهاتف') }}<input formControlName="phone" /></label>
+          <label>{{ text('Enfant', 'الطفل') }}<input formControlName="childName" /></label>
+          <label
+            >{{ text('Niveau souhaité', 'المستوى المطلوب')
+            }}<input formControlName="desiredGradeCode"
+          /></label>
+          <label>
+            {{ text('Origine', 'المصدر') }}
+            <select formControlName="source">
+              <option value="WEBSITE">Website</option>
+              <option value="INSTAGRAM">Instagram</option>
+              <option value="REFERRAL">Recommandation</option>
+              <option value="WALK_IN">Visite spontanée</option>
+            </select>
+          </label>
+          <label>{{ text('Notes', 'ملاحظات') }}<input formControlName="notes" /></label>
+          <div class="form-actions wide">
+            <button mat-button type="button" (click)="showProspectForm.set(false)">
+              {{ text('Annuler', 'إلغاء') }}
+            </button>
+            <button mat-flat-button type="submit" [disabled]="prospectForm.invalid || busy()">
+              {{ text('Ajouter', 'إضافة') }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+</main>

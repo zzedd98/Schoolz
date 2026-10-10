@@ -1,0 +1,167 @@
+<main class="enrollment-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">{{ text('Opérations', 'العمليات') }}</p>
+      <h1>{{ text('Inscriptions & réinscriptions', 'التسجيل وإعادة التسجيل') }}</h1>
+      <p>
+        {{
+          text(
+            'Suivez les dossiers complets, affectez une classe et activez l’élève.',
+            'تابع الملفات المكتملة، عيّن القسم وفعّل التلميذ.'
+          )
+        }}
+      </p>
+    </div>
+    <button mat-stroked-button type="button" [disabled]="busy()" (click)="load()">
+      {{ text('Actualiser', 'تحديث') }}
+    </button>
+  </header>
+
+  @if (error()) {
+    <div class="alert error" role="alert">{{ error() }}</div>
+  }
+  @if (message()) {
+    <div class="alert success" role="status">✓ {{ message() }}</div>
+  }
+
+  <section class="metrics">
+    <article>
+      <span>{{ text('Parcours', 'المسارات') }}</span
+      ><strong>{{ workflows().length }}</strong>
+    </article>
+    <article>
+      <span>{{ text('À affecter', 'في انتظار التعيين') }}</span
+      ><strong>{{ classAssignmentCount() }}</strong>
+    </article>
+    <article>
+      <span>{{ text('Prêts', 'جاهزة') }}</span
+      ><strong>{{ readyCount() }}</strong>
+    </article>
+    <article class="active">
+      <span>{{ text('Actifs', 'مفعلة') }}</span
+      ><strong>{{ activeCount() }}</strong>
+    </article>
+  </section>
+
+  <section class="workflow-list">
+    @for (workflow of workflows(); track workflow.id) {
+      <article class="workflow-card" [class.complete]="workflow.status === 'ACTIVE'">
+        <header>
+          <div class="type-icon">{{ workflow.workflowType === 'INITIAL' ? 'IN' : 'RE' }}</div>
+          <div>
+            <span>{{
+              workflow.workflowType === 'INITIAL'
+                ? text('Nouvelle inscription', 'تسجيل جديد')
+                : text('Réinscription annuelle', 'إعادة تسجيل سنوية')
+            }}</span>
+            <strong>{{
+              workflow.applicationId
+                ? workflow.applicationId.slice(0, 8)
+                : workflow.studentId?.slice(0, 8)
+            }}</strong>
+          </div>
+          <b [attr.data-status]="workflow.status">{{ workflow.status }}</b>
+        </header>
+
+        <div class="progress-head">
+          <span>{{ text('Préparation du dossier', 'إعداد الملف') }}</span
+          ><strong>{{ readiness(workflow) }}%</strong>
+        </div>
+        <div class="progress"><i [style.width.%]="readiness(workflow)"></i></div>
+
+        <dl>
+          <div>
+            <dt>{{ text('Contrat', 'العقد') }}</dt>
+            <dd [class.ok]="workflow.contract.status === 'ACCEPTED'">
+              {{ workflow.contract.status }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ text('Famille', 'الأسرة') }}</dt>
+            <dd [class.ok]="workflow.familyConfirmed">
+              {{ workflow.familyConfirmed ? 'OK' : '—' }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ text('Services', 'الخدمات') }}</dt>
+            <dd [class.ok]="workflow.services.confirmed">
+              {{ workflow.services.confirmed ? workflow.services.paymentPlan : '—' }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ text('Documents', 'الوثائق') }}</dt>
+            <dd [class.ok]="workflow.missingDocuments.length === 0">
+              {{
+                workflow.missingDocuments.length
+                  ? workflow.missingDocuments.length + ' manquant'
+                  : 'OK'
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ text('Signature', 'التوقيع') }}</dt>
+            <dd [class.ok]="workflow.signed">{{ workflow.signed ? 'OK' : '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ text('Frais', 'الرسوم') }}</dt>
+            <dd [class.ok]="workflow.feeStatus === 'PAID'">{{ workflow.feeStatus }}</dd>
+          </div>
+        </dl>
+
+        @if (workflow.status === 'ACTIVE') {
+          <div class="active-note">
+            <span>✓</span>
+            <div>
+              <strong>{{ text('Élève actif', 'تلميذ مفعل') }}</strong
+              ><small>{{ workflow.activatedStudentId }}</small>
+            </div>
+          </div>
+        } @else if (workflow.currentStep === 'CLASS_ASSIGNMENT' || workflow.status === 'READY') {
+          <div class="class-action">
+            <label
+              >{{ text('Classe', 'القسم') }}
+              <select
+                [value]="selections()[workflow.id] || workflow.classroomId || ''"
+                (change)="selectClass(workflow.id, $event)"
+              >
+                @for (option of classOptions(workflow.id); track option.id) {
+                  <option [value]="option.id">{{ option.name }} · {{ option.capacity }}</option>
+                }
+              </select>
+            </label>
+            @if (workflow.status !== 'READY') {
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="!selections()[workflow.id] || busy()"
+                (click)="assign(workflow)"
+              >
+                {{ text('Affecter', 'تعيين') }}
+              </button>
+            } @else {
+              <button
+                mat-flat-button
+                type="button"
+                [disabled]="busy()"
+                (click)="activate(workflow)"
+              >
+                {{ text('Activer l’inscription', 'تفعيل التسجيل') }}
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="waiting-note">
+            {{ text('En attente de la famille · étape', 'في انتظار الأسرة · المرحلة') }}
+            <b>{{ workflow.currentStep }}</b>
+          </div>
+        }
+      </article>
+    } @empty {
+      <div class="empty">
+        <span>✦</span>
+        <h2>{{ text('Aucun parcours', 'لا يوجد مسار') }}</h2>
+        <p>{{ text('Les offres acceptées apparaîtront ici.', 'ستظهر العروض المقبولة هنا.') }}</p>
+      </div>
+    }
+  </section>
+</main>

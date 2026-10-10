@@ -1,0 +1,28 @@
+{
+  "name": "SchoolZ — Espace professeur",
+  "short_name": "SchoolZ Prof",
+  "description": "La journée, les appels, les notes et les devoirs du professeur.",
+  "theme_color": "#172554",
+  "background_color": "#eff6ff",
+  "display": "standalone",
+  "scope": "/app/",
+  "id": "/app/teacher",
+  "start_url": "/app/teacher?source=pwa",
+  "lang": "fr-MA",
+  "dir": "auto",
+  "categories": ["education", "productivity"],
+  "shortcuts": [
+    { "name": "Ma journée", "short_name": "Journée", "url": "/app/teacher?source=pwa" },
+    { "name": "Faire l’appel", "short_name": "Appel", "url": "/app/attendance?source=pwa" },
+    { "name": "Saisir les notes", "short_name": "Notes", "url": "/app/grading?source=pwa" },
+    { "name": "Ajouter un devoir", "short_name": "Devoir", "url": "/app/homework?source=pwa" }
+  ],
+  "icons": [
+    {
+      "src": "icons/schoolz.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

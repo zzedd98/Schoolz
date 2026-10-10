@@ -1,0 +1,504 @@
+<main class="portal-page">
+  <header class="portal-nav">
+    <a class="brand" href="/family"
+      ><span><b>S</b><b>Z</b></span
+      >SchoolZ</a
+    >
+    <div class="nav-actions">
+      <div class="locale-switch">
+        <button
+          type="button"
+          [class.active]="i18n.locale() === 'fr-MA'"
+          (click)="i18n.setLocale('fr-MA')"
+        >
+          FR
+        </button>
+        <button
+          type="button"
+          lang="ar"
+          [class.active]="i18n.locale() === 'ar-MA'"
+          (click)="i18n.setLocale('ar-MA')"
+        >
+          ع
+        </button>
+      </div>
+      @if (home()) {
+        <button mat-stroked-button type="button" (click)="logout()">
+          {{ text('Déconnexion', 'تسجيل الخروج') }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="toast error" role="alert">{{ error() }}</div>
+  }
+  @if (message()) {
+    <div class="toast success" role="status">{{ message() }}</div>
+  }
+
+  @if (!home()) {
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">{{ text('Admissions 2026–2027', 'قبول 2026–2027') }}</p>
+        <h1>
+          {{
+            text(
+              'Chaque grande histoire commence par une candidature.',
+              'كل قصة عظيمة تبدأ بطلب ترشيح.'
+            )
+          }}
+        </h1>
+        <p>
+          {{
+            text(
+              'Créez votre espace famille, préparez le dossier de votre enfant et suivez chaque étape sans papier.',
+              'أنشئوا فضاء الأسرة، حضّروا ملف طفلكم وتابعوا كل مرحلة بدون أوراق.'
+            )
+          }}
+        </p>
+        @if (catalog(); as publicCatalog) {
+          <div class="campaign-preview">
+            <span>{{ publicCatalog.schoolName }}</span>
+            @for (campaign of publicCatalog.campaigns; track campaign.id) {
+              <article>
+                <strong>{{ campaign.name }}</strong>
+                <small>{{ campaign.opensOn }} → {{ campaign.closesOn }}</small>
+                <em>{{ campaign.applicationFee }} {{ campaign.currencyCode }}</em>
+              </article>
+            }
+          </div>
+        }
+        <div class="trust-row">
+          <span>✓ {{ text('Dossier en ligne', 'ملف عبر الإنترنت') }}</span>
+          <span>✓ {{ text('Suivi en temps réel', 'تتبع فوري') }}</span>
+          <span>✓ {{ text('Documents protégés', 'وثائق محمية') }}</span>
+        </div>
+      </div>
+
+      <section class="auth-card">
+        <div class="auth-tabs">
+          <button
+            type="button"
+            [class.active]="authMode() === 'login'"
+            (click)="authMode.set('login')"
+          >
+            {{ text('Se connecter', 'تسجيل الدخول') }}
+          </button>
+          <button
+            type="button"
+            [class.active]="authMode() === 'register'"
+            (click)="authMode.set('register')"
+          >
+            {{ text('Créer un compte', 'إنشاء حساب') }}
+          </button>
+        </div>
+        @if (authMode() === 'login') {
+          <form [formGroup]="loginForm" (ngSubmit)="login()">
+            <label
+              >{{ text('Établissement', 'المؤسسة') }}<input formControlName="tenantSlug"
+            /></label>
+            <label
+              >{{ text('Adresse e-mail', 'البريد الإلكتروني')
+              }}<input type="email" formControlName="email"
+            /></label>
+            <label
+              >{{ text('Mot de passe', 'كلمة المرور')
+              }}<input type="password" formControlName="password"
+            /></label>
+            <button mat-flat-button type="submit" [disabled]="loginForm.invalid || busy()">
+              {{ text('Ouvrir mon espace', 'فتح فضائي') }}
+            </button>
+            @if (demoAccounts) {
+              <button class="demo-button" type="button" (click)="useDemo()">
+                {{ text('Utiliser le compte parent de démo', 'استخدام حساب الأسرة التجريبي') }}
+              </button>
+            }
+          </form>
+        } @else {
+          <form [formGroup]="registerForm" (ngSubmit)="register()">
+            <label
+              >{{ text('Établissement', 'المؤسسة') }}<input formControlName="tenantSlug"
+            /></label>
+            <label
+              >{{ text('Nom de la famille', 'اسم الأسرة') }}<input formControlName="displayName"
+            /></label>
+            <label
+              >{{ text('Adresse e-mail', 'البريد الإلكتروني')
+              }}<input type="email" formControlName="email"
+            /></label>
+            <label>{{ text('Téléphone', 'الهاتف') }}<input formControlName="phone" /></label>
+            <label
+              >{{ text('Mot de passe sécurisé', 'كلمة مرور آمنة')
+              }}<input type="password" formControlName="password"
+            /></label>
+            <small>{{
+              text(
+                '12 caractères, majuscule, minuscule et chiffre.',
+                '12 حرفاً، حرف كبير وصغير ورقم.'
+              )
+            }}</small>
+            <button mat-flat-button type="submit" [disabled]="registerForm.invalid || busy()">
+              {{ text('Créer mon espace', 'إنشاء فضائي') }}
+            </button>
+          </form>
+        }
+      </section>
+    </section>
+  } @else if (home(); as portal) {
+    <section class="portal-hero">
+      <div>
+        <p class="eyebrow">{{ text('Espace famille', 'فضاء الأسرة') }}</p>
+        <h1>{{ text('Bonjour', 'مرحباً') }}, {{ portal.account.displayName }}</h1>
+        <p>
+          {{
+            text(
+              'Tout votre parcours d’admission, au même endroit.',
+              'مسار القبول كاملاً في مكان واحد.'
+            )
+          }}
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button mat-stroked-button type="button" (click)="showChildForm.set(true)">
+          {{ text('+ Ajouter un enfant', '+ إضافة طفل') }}
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="portal.applicants.length === 0"
+          (click)="openApplicationForm()"
+        >
+          {{ text('Nouveau dossier', 'ملف جديد') }}
+        </button>
+      </div>
+    </section>
+
+    <section class="portal-grid">
+      <div class="main-column">
+        <section class="section-card children-card">
+          <div class="section-heading">
+            <div>
+              <span>{{ text('Votre famille', 'أسرتكم') }}</span>
+              <h2>{{ text('Enfants candidats', 'الأطفال المرشحون') }}</h2>
+            </div>
+          </div>
+          <div class="children-list">
+            @for (child of portal.applicants; track child.id) {
+              <article>
+                <span>{{ child.firstName.slice(0, 1) }}{{ child.lastName.slice(0, 1) }}</span>
+                <div>
+                  <strong>{{ child.firstName }} {{ child.lastName }}</strong
+                  ><small>{{ child.birthDate }} · {{ child.currentSchool || '—' }}</small>
+                </div>
+                <button type="button" (click)="openApplicationForm(child.id)">
+                  {{ text('Candidater', 'ترشيح') }}
+                </button>
+              </article>
+            } @empty {
+              <p>
+                {{
+                  text('Ajoutez un enfant pour démarrer son dossier.', 'أضيفوا طفلاً لبدء ملفه.')
+                }}
+              </p>
+            }
+          </div>
+        </section>
+
+        <section class="applications-section">
+          <div class="section-heading">
+            <div>
+              <span>{{ text('Suivi', 'التتبع') }}</span>
+              <h2>{{ text('Dossiers d’admission', 'ملفات القبول') }}</h2>
+            </div>
+            <b>{{ portal.applications.length }}</b>
+          </div>
+          @for (application of portal.applications; track application.id) {
+            <article class="application-card">
+              <header>
+                <div>
+                  <span class="application-icon">{{ application.applicantName.slice(0, 1) }}</span>
+                  <div>
+                    <strong>{{ application.applicantName }}</strong
+                    ><small
+                      >{{ application.referenceNumber }} · {{ application.campaignName }}</small
+                    >
+                  </div>
+                </div>
+                <em [attr.data-status]="application.status">{{
+                  statusLabel(application.status)
+                }}</em>
+              </header>
+              <div class="completion">
+                <div>
+                  <span>{{ text('Complétude du dossier', 'اكتمال الملف') }}</span
+                  ><b>{{ application.completenessPercent }}%</b>
+                </div>
+                <i><span [style.width.%]="application.completenessPercent"></span></i>
+              </div>
+
+              @if (application.status === 'APPLICATION_STARTED') {
+                <div class="application-workspace">
+                  <section>
+                    <h3>1. {{ text('Formulaire', 'الاستمارة') }}</h3>
+                    <label
+                      >{{ text('Pourquoi SchoolZ ?', 'لماذا SchoolZ؟')
+                      }}<textarea
+                        [value]="draft(application.id, 'motivation')"
+                        (input)="updateDraft(application.id, 'motivation', $event)"
+                      ></textarea>
+                    </label>
+                    <label
+                      >{{ text('Informations utiles', 'معلومات مفيدة')
+                      }}<input
+                        [value]="draft(application.id, 'notes')"
+                        (input)="updateDraft(application.id, 'notes', $event)"
+                    /></label>
+                    <button mat-stroked-button type="button" (click)="saveForm(application)">
+                      {{ text('Enregistrer', 'حفظ') }}
+                    </button>
+                  </section>
+                  <section>
+                    <h3>2. {{ text('Pièces justificatives', 'الوثائق المطلوبة') }}</h3>
+                    <div class="upload-row">
+                      <select
+                        [value]="documentType(application.id)"
+                        (change)="setDocumentType(application.id, $event)"
+                      >
+                        <option value="BIRTH_CERTIFICATE">
+                          {{ text('Acte de naissance', 'رسم الولادة') }}
+                        </option>
+                        <option value="REPORT_CARD">
+                          {{ text('Dernier bulletin', 'آخر بيان نقط') }}
+                        </option>
+                        <option value="IDENTITY">
+                          {{ text('Pièce d’identité', 'بطاقة التعريف') }}
+                        </option>
+                      </select>
+                      <label class="file-button"
+                        ><input
+                          type="file"
+                          accept="application/pdf,image/jpeg,image/png"
+                          (change)="upload(application.id, $event)"
+                        />{{ text('Choisir un fichier', 'اختيار ملف') }}</label
+                      >
+                    </div>
+                    <ul class="documents">
+                      @for (document of application.documents; track document.id) {
+                        <li>
+                          <span>✓</span>
+                          <div>
+                            <strong>{{ document.originalFileName }}</strong
+                            ><small>{{ document.documentType }} · {{ document.status }}</small>
+                          </div>
+                        </li>
+                      } @empty {
+                        <li class="empty-document">
+                          {{ text('Aucune pièce ajoutée.', 'لم تتم إضافة أي وثيقة.') }}
+                        </li>
+                      }
+                    </ul>
+                  </section>
+                </div>
+                <footer class="application-actions">
+                  <div>
+                    <span>{{ text('Frais de dossier', 'رسوم الملف') }}</span>
+                    <strong>{{ application.applicationFee }} {{ application.currencyCode }}</strong>
+                    <small>{{ application.paymentStatus }}</small>
+                  </div>
+                  @if (application.applicationFee > 0 && application.paymentStatus !== 'PAID') {
+                    <button mat-stroked-button type="button" (click)="pay(application)">
+                      {{ text('Payer en démo', 'الدفع التجريبي') }}
+                    </button>
+                  }
+                  <button mat-flat-button type="button" (click)="submit(application)">
+                    {{ text('Envoyer le dossier', 'إرسال الملف') }}
+                  </button>
+                </footer>
+              } @else {
+                <div class="timeline">
+                  @for (entry of application.history; track entry.occurredAt) {
+                    <div>
+                      <span></span><strong>{{ statusLabel(entry.toStatus) }}</strong
+                      ><small
+                        >{{ entry.occurredAt.slice(0, 10) }} ·
+                        {{ entry.comment || text('Mise à jour', 'تحديث') }}</small
+                      >
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (application.offer; as offer) {
+                <aside class="offer" [class.accepted]="offer.status === 'ACCEPTED'">
+                  <div>
+                    <span>{{ text('Offre d’inscription', 'عرض التسجيل') }}</span
+                    ><strong>{{ offer.reference }}</strong
+                    ><small
+                      >{{ text('Valable jusqu’au', 'صالحة حتى') }} {{ offer.expiresOn }}</small
+                    >
+                  </div>
+                  @if (offer.status === 'OFFERED') {
+                    <button mat-flat-button type="button" (click)="acceptOffer(application)">
+                      {{ text('Accepter l’offre', 'قبول العرض') }}
+                    </button>
+                  } @else {
+                    <a mat-flat-button routerLink="/enrollment">
+                      {{ text('Finaliser l’inscription', 'إكمال التسجيل') }}
+                    </a>
+                  }
+                </aside>
+              }
+            </article>
+          } @empty {
+            <div class="empty-state">
+              <span>✦</span>
+              <h3>{{ text('Aucun dossier pour le moment', 'لا يوجد ملف حالياً') }}</h3>
+              <p>
+                {{
+                  text(
+                    'Sélectionnez un enfant et lancez sa candidature.',
+                    'اختاروا طفلاً وابدؤوا ترشيحه.'
+                  )
+                }}
+              </p>
+            </div>
+          }
+        </section>
+      </div>
+
+      <aside class="notifications-card">
+        <div class="section-heading">
+          <div>
+            <span>{{ text('Centre de messages', 'مركز الرسائل') }}</span>
+            <h2>{{ text('Notifications', 'الإشعارات') }}</h2>
+          </div>
+          <b>{{ portal.notifications.length }}</b>
+        </div>
+        <div class="notifications">
+          @for (notification of portal.notifications; track notification.id) {
+            <button
+              type="button"
+              [class.unread]="!notification.readAt"
+              (click)="markRead(notification.id)"
+            >
+              <span></span>
+              <div>
+                <strong>{{ notification.title }}</strong>
+                <p>{{ notification.message }}</p>
+                <small>{{ notification.createdAt.slice(0, 16).replace('T', ' ') }}</small>
+              </div>
+            </button>
+          } @empty {
+            <p>{{ text('Vous êtes à jour.', 'لا توجد إشعارات جديدة.') }}</p>
+          }
+        </div>
+      </aside>
+    </section>
+  }
+
+  @if (showChildForm()) {
+    <div class="modal-backdrop">
+      <section class="modal">
+        <p class="eyebrow">{{ text('Votre famille', 'أسرتكم') }}</p>
+        <h2>{{ text('Ajouter un enfant', 'إضافة طفل') }}</h2>
+        <form [formGroup]="childForm" (ngSubmit)="addChild()">
+          <label>{{ text('Prénom', 'الاسم') }}<input formControlName="firstName" /></label>
+          <label>{{ text('Nom', 'النسب') }}<input formControlName="lastName" /></label>
+          <label
+            >{{ text('Date de naissance', 'تاريخ الازدياد')
+            }}<input type="date" formControlName="birthDate"
+          /></label>
+          <label
+            >{{ text('Genre', 'الجنس')
+            }}<select formControlName="gender">
+              <option value="FEMALE">{{ text('Fille', 'أنثى') }}</option>
+              <option value="MALE">{{ text('Garçon', 'ذكر') }}</option>
+            </select></label
+          >
+          <label
+            >{{ text('Nationalité', 'الجنسية')
+            }}<input maxlength="2" formControlName="nationalityCode"
+          /></label>
+          <label
+            >{{ text('École actuelle', 'المدرسة الحالية') }}<input formControlName="currentSchool"
+          /></label>
+          <div class="modal-actions">
+            <button mat-button type="button" (click)="showChildForm.set(false)">
+              {{ text('Annuler', 'إلغاء') }}</button
+            ><button mat-flat-button type="submit" [disabled]="childForm.invalid || busy()">
+              {{ text('Ajouter', 'إضافة') }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (showApplicationForm() && catalog(); as publicCatalog) {
+    <div class="modal-backdrop">
+      <section class="modal">
+        <p class="eyebrow">{{ text('Nouvelle candidature', 'ترشيح جديد') }}</p>
+        <h2>{{ text('Ouvrir un dossier', 'فتح ملف') }}</h2>
+        <div class="selection-form">
+          <label
+            >{{ text('Enfant', 'الطفل')
+            }}<select
+              [value]="selectedApplicantId()"
+              (change)="selectedApplicantId.set($any($event.target).value)"
+            >
+              @for (child of home()?.applicants ?? []; track child.id) {
+                <option [value]="child.id">{{ child.firstName }} {{ child.lastName }}</option>
+              }
+            </select></label
+          >
+          <label
+            >{{ text('Campagne', 'الحملة')
+            }}<select
+              [value]="selectedCampaignId()"
+              (change)="selectedCampaignId.set($any($event.target).value)"
+            >
+              @for (campaign of publicCatalog.campaigns; track campaign.id) {
+                <option [value]="campaign.id">{{ campaign.name }}</option>
+              }
+            </select></label
+          >
+          <label
+            >{{ text('Campus', 'المؤسسة')
+            }}<select
+              [value]="selectedCampusId()"
+              (change)="selectedCampusId.set($any($event.target).value)"
+            >
+              @for (campus of publicCatalog.campuses; track campus.id) {
+                <option [value]="campus.id">{{ campus.name }}</option>
+              }
+            </select></label
+          >
+          <label
+            >{{ text('Niveau', 'المستوى')
+            }}<select
+              [value]="selectedGradeId()"
+              (change)="selectedGradeId.set($any($event.target).value)"
+            >
+              @for (grade of publicCatalog.grades; track grade.id) {
+                <option [value]="grade.id">{{ grade.name }}</option>
+              }
+            </select></label
+          >
+          <div class="modal-actions">
+            <button mat-button type="button" (click)="showApplicationForm.set(false)">
+              {{ text('Annuler', 'إلغاء') }}</button
+            ><button
+              mat-flat-button
+              type="button"
+              [disabled]="busy()"
+              (click)="createApplication()"
+            >
+              {{ text('Créer le dossier', 'إنشاء الملف') }}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  }
+</main>
